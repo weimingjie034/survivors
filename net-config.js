@@ -16,5 +16,5 @@
 // 例外：若你用的是「页面在 GitHub Pages + 房间服务在你自己电脑」这种跨源组合，
 //       还需保证你的 natapp 隧道已开启 HTTPS（二级域名默认已全面支持）。
 window.NET_CONFIG = {
-  wsUrl: ''
+  wsUrl: 'wss://ixuanzi.nat100.top/ws'
 };
