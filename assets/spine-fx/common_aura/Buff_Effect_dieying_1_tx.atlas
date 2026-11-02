@@ -1,0 +1,286 @@
+Buff_Effect_dieying_1_tx.png
+size: 2044, 824
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+chutu/dieying/d1/d1_00000
+  rotate: true
+  xy: 811, 4
+  size: 222, 118
+  orig: 354, 246
+  offset: 74, 64
+  index: -1
+chutu/dieying/d1/d1_00002
+  rotate: false
+  xy: 931, 13
+  size: 241, 105
+  orig: 354, 246
+  offset: 63, 73
+  index: -1
+chutu/dieying/d1/d1_00004
+  rotate: false
+  xy: 1209, 122
+  size: 268, 101
+  orig: 354, 246
+  offset: 48, 74
+  index: -1
+chutu/dieying/d1/d1_00006
+  rotate: false
+  xy: 999, 265
+  size: 314, 109
+  orig: 354, 246
+  offset: 21, 69
+  index: -1
+chutu/dieying/d1/d1_00008
+  rotate: false
+  xy: 591, 97
+  size: 218, 129
+  orig: 354, 246
+  offset: 71, 58
+  index: -1
+chutu/dieying/d1/d1_00010
+  rotate: false
+  xy: 160, 172
+  size: 208, 143
+  orig: 354, 246
+  offset: 78, 50
+  index: -1
+chutu/dieying/d1/d1_00012
+  rotate: false
+  xy: 1835, 175
+  size: 206, 154
+  orig: 354, 246
+  offset: 78, 44
+  index: -1
+chutu/dieying/d1/d1_00014
+  rotate: false
+  xy: 211, 317
+  size: 206, 169
+  orig: 354, 246
+  offset: 78, 35
+  index: -1
+chutu/dieying/d1/d1_00016
+  rotate: false
+  xy: 1719, 455
+  size: 206, 195
+  orig: 354, 246
+  offset: 80, 20
+  index: -1
+chutu/dieying/d1/d1_00018
+  rotate: false
+  xy: 3, 34
+  size: 197, 136
+  orig: 354, 246
+  offset: 86, 54
+  index: -1
+chutu/dieying/d1/d1_00020
+  rotate: false
+  xy: 1209, 3
+  size: 222, 117
+  orig: 354, 246
+  offset: 74, 65
+  index: -1
+chutu/dieying/d1/d1_00022
+  rotate: false
+  xy: 202, 5
+  size: 242, 105
+  orig: 354, 246
+  offset: 62, 73
+  index: -1
+chutu/dieying/d1/d1_00024
+  rotate: false
+  xy: 1479, 103
+  size: 268, 101
+  orig: 354, 246
+  offset: 47, 74
+  index: -1
+chutu/dieying/d1/d1_00026
+  rotate: true
+  xy: 1927, 336
+  size: 314, 109
+  orig: 354, 246
+  offset: 20, 69
+  index: -1
+chutu/dieying/d1/d1_00028
+  rotate: false
+  xy: 370, 112
+  size: 219, 129
+  orig: 354, 246
+  offset: 70, 58
+  index: -1
+chutu/dieying/d1/d1_00030
+  rotate: false
+  xy: 999, 120
+  size: 208, 143
+  orig: 354, 246
+  offset: 78, 50
+  index: -1
+chutu/dieying/d1/d1_00032
+  rotate: true
+  xy: 3, 221
+  size: 206, 155
+  orig: 354, 246
+  offset: 78, 43
+  index: -1
+chutu/dieying/d1/d1_00034
+  rotate: false
+  xy: 791, 228
+  size: 206, 169
+  orig: 354, 246
+  offset: 78, 35
+  index: -1
+chutu/dieying/d1/d1_00036
+  rotate: false
+  xy: 3, 429
+  size: 206, 195
+  orig: 354, 246
+  offset: 80, 20
+  index: -1
+chutu/dieying/d1/d1_00038
+  rotate: false
+  xy: 1749, 37
+  size: 198, 136
+  orig: 354, 246
+  offset: 86, 54
+  index: -1
+chutu/dieying/d2/d2_00000
+  rotate: false
+  xy: 495, 379
+  size: 294, 128
+  orig: 354, 246
+  offset: 36, 62
+  index: -1
+chutu/dieying/d2/d2_00002
+  rotate: false
+  xy: 788, 526
+  size: 304, 135
+  orig: 354, 246
+  offset: 31, 59
+  index: -1
+chutu/dieying/d2/d2_00004
+  rotate: false
+  xy: 1464, 681
+  size: 313, 140
+  orig: 354, 246
+  offset: 26, 56
+  index: -1
+chutu/dieying/d2/d2_00006
+  rotate: false
+  xy: 535, 675
+  size: 326, 146
+  orig: 354, 246
+  offset: 18, 53
+  index: -1
+chutu/dieying/d2/d2_00008
+  rotate: false
+  xy: 1166, 669
+  size: 296, 152
+  orig: 354, 246
+  offset: 35, 50
+  index: -1
+chutu/dieying/d2/d2_00010
+  rotate: false
+  xy: 863, 663
+  size: 301, 158
+  orig: 354, 246
+  offset: 32, 47
+  index: -1
+chutu/dieying/d2/d2_00012
+  rotate: false
+  xy: 535, 509
+  size: 251, 164
+  orig: 354, 246
+  offset: 57, 44
+  index: -1
+chutu/dieying/d2/d2_00014
+  rotate: false
+  xy: 1464, 508
+  size: 253, 171
+  orig: 354, 246
+  offset: 56, 35
+  index: -1
+chutu/dieying/d2/d2_00016
+  rotate: false
+  xy: 276, 626
+  size: 257, 195
+  orig: 354, 246
+  offset: 54, 20
+  index: -1
+chutu/dieying/d2/d2_00018
+  rotate: false
+  xy: 1343, 370
+  size: 267, 136
+  orig: 354, 246
+  offset: 49, 54
+  index: -1
+chutu/dieying/d2/d2_00020
+  rotate: false
+  xy: 1556, 206
+  size: 277, 123
+  orig: 354, 246
+  offset: 44, 64
+  index: -1
+chutu/dieying/d2/d2_00022
+  rotate: false
+  xy: 1612, 331
+  size: 287, 122
+  orig: 354, 246
+  offset: 39, 65
+  index: -1
+chutu/dieying/d2/d2_00024
+  rotate: false
+  xy: 791, 399
+  size: 294, 125
+  orig: 354, 246
+  offset: 36, 64
+  index: -1
+chutu/dieying/d2/d2_00026
+  rotate: false
+  xy: 1094, 533
+  size: 315, 128
+  orig: 354, 246
+  offset: 20, 62
+  index: -1
+chutu/dieying/d2/d2_00028
+  rotate: false
+  xy: 419, 243
+  size: 257, 134
+  orig: 354, 246
+  offset: 54, 58
+  index: -1
+chutu/dieying/d2/d2_00030
+  rotate: false
+  xy: 1315, 225
+  size: 239, 143
+  orig: 354, 246
+  offset: 63, 50
+  index: -1
+chutu/dieying/d2/d2_00032
+  rotate: false
+  xy: 1094, 376
+  size: 247, 155
+  orig: 354, 246
+  offset: 59, 43
+  index: -1
+chutu/dieying/d2/d2_00034
+  rotate: false
+  xy: 1779, 652
+  size: 258, 169
+  orig: 354, 246
+  offset: 54, 35
+  index: -1
+chutu/dieying/d2/d2_00036
+  rotate: false
+  xy: 3, 626
+  size: 271, 195
+  orig: 354, 246
+  offset: 47, 20
+  index: -1
+chutu/dieying/d2/d2_00038
+  rotate: false
+  xy: 211, 488
+  size: 282, 136
+  orig: 354, 246
+  offset: 42, 54
+  index: -1
+

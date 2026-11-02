@@ -1,0 +1,146 @@
+Buff_Effect_huoyou_1_tx.png
+size: 268, 2040
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+chutu/hy1/hy1_00000
+  rotate: true
+  xy: 3, 3
+  size: 122, 185
+  orig: 189, 282
+  offset: 37, 23
+  index: -1
+chutu/hy1/hy1_00002
+  rotate: false
+  xy: 3, 535
+  size: 131, 204
+  orig: 189, 282
+  offset: 35, 23
+  index: -1
+chutu/hy1/hy1_00004
+  rotate: false
+  xy: 3, 945
+  size: 133, 211
+  orig: 189, 282
+  offset: 35, 22
+  index: -1
+chutu/hy1/hy1_00006
+  rotate: false
+  xy: 3, 1373
+  size: 134, 217
+  orig: 189, 282
+  offset: 35, 21
+  index: -1
+chutu/hy1/hy1_00008
+  rotate: false
+  xy: 3, 741
+  size: 135, 202
+  orig: 189, 282
+  offset: 34, 21
+  index: -1
+chutu/hy1/hy1_00010
+  rotate: false
+  xy: 3, 127
+  size: 128, 199
+  orig: 189, 282
+  offset: 32, 21
+  index: -1
+chutu/hy1/hy1_00012
+  rotate: false
+  xy: 3, 328
+  size: 130, 205
+  orig: 189, 282
+  offset: 31, 22
+  index: -1
+chutu/hy1/hy1_00014
+  rotate: false
+  xy: 3, 1158
+  size: 132, 213
+  orig: 189, 282
+  offset: 28, 22
+  index: -1
+chutu/hy1/hy1_00016
+  rotate: false
+  xy: 3, 1592
+  size: 135, 220
+  orig: 189, 282
+  offset: 25, 22
+  index: -1
+chutu/hy1/hy1_00018
+  rotate: false
+  xy: 3, 1814
+  size: 135, 222
+  orig: 189, 282
+  offset: 24, 21
+  index: -1
+chutu/hy2/hy2_00000
+  rotate: false
+  xy: 140, 1633
+  size: 118, 131
+  orig: 189, 282
+  offset: 35, 51
+  index: -1
+chutu/hy2/hy2_00002
+  rotate: false
+  xy: 140, 1766
+  size: 121, 134
+  orig: 189, 282
+  offset: 33, 51
+  index: -1
+chutu/hy2/hy2_00004
+  rotate: false
+  xy: 140, 884
+  size: 124, 123
+  orig: 189, 282
+  offset: 32, 51
+  index: -1
+chutu/hy2/hy2_00006
+  rotate: false
+  xy: 140, 1902
+  size: 125, 134
+  orig: 189, 282
+  offset: 32, 51
+  index: -1
+chutu/hy2/hy2_00008
+  rotate: false
+  xy: 139, 1428
+  size: 126, 162
+  orig: 189, 282
+  offset: 32, 33
+  index: -1
+chutu/hy2/hy2_00010
+  rotate: false
+  xy: 136, 569
+  size: 127, 170
+  orig: 189, 282
+  offset: 33, 35
+  index: -1
+chutu/hy2/hy2_00012
+  rotate: false
+  xy: 135, 359
+  size: 127, 174
+  orig: 189, 282
+  offset: 34, 41
+  index: -1
+chutu/hy2/hy2_00014
+  rotate: false
+  xy: 137, 1193
+  size: 117, 178
+  orig: 189, 282
+  offset: 38, 47
+  index: -1
+chutu/hy2/hy2_00016
+  rotate: false
+  xy: 138, 1009
+  size: 113, 182
+  orig: 189, 282
+  offset: 40, 51
+  index: -1
+chutu/hy2/hy2_00018
+  rotate: false
+  xy: 133, 130
+  size: 113, 196
+  orig: 189, 282
+  offset: 37, 45
+  index: -1
+

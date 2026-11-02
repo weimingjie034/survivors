@@ -1,0 +1,50 @@
+Aoshujuxiang_hong.png
+size:492,484
+filter:Linear,Linear
+pma:true
+scale:0.9
+shen ti
+bounds:0,307,180,177
+offsets:0,0,181,177
+tou
+bounds:319,176,141,148
+yao
+bounds:0,30,125,80
+offsets:1,1,127,81
+yingzi
+bounds:150,56,249,44
+rotate:90
+you bao shi
+bounds:351,45,58,59
+offsets:0,0,60,59
+you jian
+bounds:196,157,121,169
+offsets:1,0,122,169
+you shou xia
+bounds:366,326,125,158
+offsets:0,1,125,159
+you tui shang
+bounds:420,104,61,70
+offsets:1,1,62,71
+you tui xia
+bounds:270,65,90,73
+offsets:0,1,91,74
+rotate:90
+zhong jian bao shi
+bounds:345,106,73,68
+offsets:0,2,75,71
+zuo bao shi
+bounds:411,33,70,69
+offsets:2,0,72,70
+zuo jian
+bounds:182,328,182,156
+offsets:0,0,182,157
+zuo shou
+bounds:0,112,148,193
+zuo tui shang
+bounds:270,0,63,79
+offsets:1,1,64,81
+rotate:90
+zuo tui xia
+bounds:196,59,72,96
+offsets:1,1,74,97

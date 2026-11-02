@@ -1,0 +1,41 @@
+Buff_Effect_qimen_tx_2.png
+size: 176, 684
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+images/d1/d1_00000
+  rotate: false
+  xy: 3, 346
+  size: 166, 165
+  orig: 174, 174
+  offset: 3, 6
+  index: -1
+images/d2/d2_00000
+  rotate: true
+  xy: 3, 91
+  size: 120, 121
+  orig: 133, 132
+  offset: 6, 6
+  index: -1
+images/d3/d3_00000
+  rotate: false
+  xy: 3, 513
+  size: 169, 169
+  orig: 174, 174
+  offset: 2, 4
+  index: -1
+images/d4/d4_00000
+  rotate: false
+  xy: 3, 213
+  size: 132, 131
+  orig: 138, 139
+  offset: 2, 4
+  index: -1
+images/d5/d5_00000
+  rotate: false
+  xy: 3, 3
+  size: 87, 86
+  orig: 96, 95
+  offset: 4, 5
+  index: -1
+

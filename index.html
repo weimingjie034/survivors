@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#090d12">
+  <title>艾泽拉斯幸存者 · 净室复刻</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="游戏战场"></canvas>
+
+    <!-- 第 14 项：首次进入的加载等待页 -->
+    <!-- 素材（精灵图 / 场景贴图 / Spine 骨骼 / 全部图标 PNG）全部加载完成后，
+         由 game.js 把 body 加上 assets-ready 类，切到首页并淡出本页。 -->
+    <section id="boot" class="boot-screen">
+      <div class="boot-card">
+        <div class="boot-title">艾泽拉斯幸存者</div>
+        <div class="boot-bar"><i id="boot-fill"></i></div>
+        <div class="boot-meta">
+          <span id="boot-stage">正在准备素材…</span>
+          <span id="boot-pct">0%</span>
+        </div>
+        <div class="boot-hint">首次进入需要下载全部游戏素材（角色、场景与图标），完成后自动进入首页</div>
+      </div>
+    </section>
+
+    <!-- 首页 -->
+    <section id="home" class="screen">
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">非官方 · 净室玩法复刻</div>
+        <h1><span>艾泽拉斯</span>幸存者</h1>
+        <p class="tagline">集结你的英雄，在无尽围攻中生存下去</p>
+        <nav class="home-nav">
+          <button id="nav-dungeons" class="home-btn">
+            <i>♛</i>
+            <span><strong>冒险模式</strong><small>四大经典副本 · 约 15 分钟 · 产装备图纸与金币</small></span>
+          </button>
+          <button id="nav-adventure" class="home-btn">
+            <i>⚔</i>
+            <span><strong>无尽模式</strong><small>无尽围攻 · 只产成就与药水</small></span>
+          </button>
+          <button id="nav-trainer" class="home-btn">
+            <i>✦</i>
+            <span><strong>职业训练师</strong><small>花费金币学习技能，自由装备</small></span>
+          </button>
+          <button id="nav-profession" class="home-btn">
+            <i>⚒</i>
+            <span><strong>专业训练师</strong><small>学习制造业专业与配方</small></span>
+          </button>
+        </nav>
+        <div id="home-best" class="best"></div>
+      </div>
+      <div class="home-corner">
+        <button id="achv-toggle" class="corner-btn" aria-label="成就">
+          <span class="bag-icon">★</span>
+          <span class="bag-label">成就</span>
+        </button>
+        <button id="bag-toggle" class="corner-btn" aria-label="背包">
+          <span class="bag-icon">▣</span>
+          <span class="bag-label">背包</span>
+          <em id="bag-gold">0</em>
+        </button>
+      </div>
+    </section>
+
+    <!-- 挑战方式选择（单人 / 组队） -->
+    <section id="mode-choice" class="screen hidden">
+      <button id="mc-back" class="back-arrow" title="返回">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">选择挑战方式</div>
+        <h2 class="trainer-title" id="mc-title">无尽模式</h2>
+        <p class="tagline">组队挑战将进入局域网房间列表 · 联机模式下怪物随人数增强</p>
+        <nav class="home-nav">
+          <button id="mc-solo" class="home-btn"><i>⚔</i><span><strong>单人挑战</strong><small>独自进入战场</small></span></button>
+          <button id="mc-multi" class="home-btn"><i>❖</i><span><strong>组队挑战</strong><small>局域网联机 · 最多 4 人</small></span></button>
+        </nav>
+      </div>
+    </section>
+
+    <!-- 房间列表 -->
+    <section id="rooms" class="screen hidden">
+      <button id="rooms-back" class="back-arrow" title="返回">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">局域网联机</div>
+        <h2 class="trainer-title">房间列表</h2>
+        <p class="tagline" id="rooms-hint">同一局域网内的玩家可通过主机地址加入</p>
+        <div class="rooms-top">
+          <input id="player-name" maxlength="12" placeholder="你的昵称" autocomplete="off">
+          <input id="player-code" maxlength="12" placeholder="存档码（可选）" autocomplete="off" title="同一昵称想用不同存档时填写；换设备时填同一码即可找回进度">
+          <button id="room-create" class="primary slim">创建房间</button>
+          <button id="room-refresh" class="secondary slim">刷新列表</button>
+        </div>
+        <p class="rooms-note">存档保存在你自己的浏览器；结算收益会存回本地，换设备时填相同「昵称 + 存档码」即可找回。</p>
+        <div id="room-list" class="room-list"></div>
+      </div>
+    </section>
+
+    <!-- 房间大厅 -->
+    <section id="lobby" class="screen hidden">
+      <button id="lobby-back" class="back-arrow" title="离开房间">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow" id="lobby-mode">组队挑战</div>
+        <h2 class="trainer-title" id="lobby-name">房间</h2>
+        <p class="tagline">所有玩家准备后，房主即可开始游戏 · 人数越多怪物越强</p>
+        <div id="lobby-slots" class="lobby-slots"></div>
+        <div class="lobby-actions">
+          <div class="lobby-hero-pick" id="lobby-heroes">
+            <button class="lobby-hero selected" data-hero="mage" title="奥术法师">✦</button>
+            <button class="lobby-hero" data-hero="warrior" title="无畏战士">⚔</button>
+            <button class="lobby-hero" data-hero="hunter" title="荒野猎人">➶</button>
+          </div>
+          <button id="lobby-ready" class="primary slim">准备</button>
+          <button id="lobby-start" class="primary slim hidden">开始游戏</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 职业选择（开始冒险） -->
+    <section id="menu" class="screen hidden">
+      <button id="menu-home" class="back-arrow" title="返回首页">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">选择你的职业</div>
+        <h1><span>艾泽拉斯</span>幸存者</h1>
+        <p class="tagline">已装备的技能会随你进入战场 · 可在职业训练师处调整</p>
+        <div id="heroes" class="heroes">
+          <button class="hero selected" data-hero="mage">
+            <span class="hero-icon mage">✦</span>
+            <span class="hero-class">奥术法师</span>
+            <span class="hero-role">远程 · 穿透</span>
+            <span class="hero-desc">奥术飞弹穿透敌阵，擅长清理直线上的目标。</span>
+            <span class="hero-best"></span>
+            <span class="stats"><i>生命 85</i><i>伤害 22</i><i>攻速 快</i></span>
+          </button>
+          <button class="hero" data-hero="warrior">
+            <span class="hero-icon warrior">⚔</span>
+            <span class="hero-class">无畏战士</span>
+            <span class="hero-role">近战 · 坚韧</span>
+            <span class="hero-desc">横扫周身之敌，以更高生命和护甲正面迎敌。</span>
+            <span class="hero-best"></span>
+            <span class="stats"><i>生命 125</i><i>伤害 28</i><i>护甲 2</i></span>
+          </button>
+          <button class="hero" data-hero="hunter">
+            <span class="hero-icon hunter">➶</span>
+            <span class="hero-class">荒野猎人</span>
+            <span class="hero-role">远程 · 多重</span>
+            <span class="hero-desc">一次射出双箭，移动灵活，适合边退边打。</span>
+            <span class="hero-best"></span>
+            <span class="stats"><i>生命 95</i><i>伤害 15×2</i><i>移速 快</i></span>
+          </button>
+        </div>
+        <button id="start" class="primary"><span>开始远征</span><small>选择英雄后进入战场</small></button>
+        <div class="menu-footer">
+          <span><kbd>WASD</kbd> / <kbd>方向键</kbd> 移动</span>
+          <span><kbd>空格</kbd> 闪现</span>
+          <span><kbd>Q</kbd>/<kbd>R</kbd> 主动技能</span>
+          <span><kbd>E</kbd> 药水</span>
+          <span><kbd>Esc</kbd> 暂停</span>
+          <span>自动攻击最近敌人</span>
+        </div>
+        <div id="best" class="best"></div>
+      </div>
+    </section>
+
+    <!-- 背包（左：角色装备面板 / 右：行囊） -->
+    <section id="backpack" class="screen modal hidden">
+      <button id="bag-close" class="back-arrow" title="关闭背包">←</button>
+      <div class="modal-panel bag-panel wide">
+        <div class="eyebrow">背包</div>
+        <h2>行囊与装备</h2>
+        <div class="bag-layout">
+          <aside class="char-panel">
+            <div id="char-tabs" class="char-tabs">
+              <button class="char-tab selected" data-class="mage" title="奥术法师">✦</button>
+              <button class="char-tab" data-class="warrior" title="无畏战士">⚔</button>
+              <button class="char-tab" data-class="hunter" title="荒野猎人">➶</button>
+            </div>
+            <div id="char-name" class="char-name">奥术法师</div>
+            <div id="eq-potion" class="eq-slot"></div>
+            <div id="pot-list" class="pot-list"></div>
+            <div id="char-stats" class="char-stats"></div>
+            <div class="achv-title">成就</div>
+            <div id="achv-list" class="achv-list"></div>
+          </aside>
+          <div class="bag-main">
+            <div id="bag-grid" class="bag-grid"></div>
+            <div class="bag-footer"><span>左键查看操作 · 右键快捷使用/装备/携带/出售</span><span>金币总计 <strong id="bag-gold-total">0</strong></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div id="item-menu" class="hidden"></div>
+
+    <!-- 装备详情（专业界面点击查看） -->
+    <section id="gear-detail" class="screen modal hidden">
+      <div class="modal-panel detail-panel">
+        <div id="gd-body"></div>
+        <button id="gd-close" class="text-button">关闭</button>
+      </div>
+    </section>
+
+    <!-- 专业训练师（装备图谱） -->
+    <section id="profession" class="screen hidden">
+      <button id="prof-back" class="back-arrow" title="返回首页">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">专业训练师</div>
+        <h2 class="trainer-title">研习图谱</h2>
+        <p class="tagline">研习装备图样后，冒险中击杀怪物有几率爆出对应装备卡牌 · 传说图样需首领掉落图纸 · 无尽药水由首领掉落或成就解锁</p>
+        <div class="trainer-top"><div class="trainer-gold">金币<strong id="prof-gold">0</strong></div></div>
+        <div id="prof-list" class="prof-list"></div>
+      </div>
+    </section>
+
+    <!-- 装备掉落卡牌 -->
+    <section id="gearpick" class="screen modal hidden">
+      <div class="modal-panel level-panel">
+        <div class="eyebrow">LOOT</div>
+        <h2>战利品 · 选择一件</h2>
+        <p>时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备</p>
+        <p id="gearpick-live" class="live-hint hidden">⚔ 联机模式 · 战斗仍在继续，请快速抉择！</p>
+        <div id="gear-cards" class="upgrade-cards"></div>
+      </div>
+    </section>
+
+    <!-- 职业训练师 -->
+    <section id="trainer" class="screen hidden">
+      <button id="trainer-back" class="back-arrow" title="返回首页">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">职业训练师</div>
+        <h2 class="trainer-title">研习技能</h2>
+        <div class="trainer-top">
+          <div id="trainer-tabs" class="trainer-tabs">
+            <button class="trainer-tab selected" data-class="mage">✦ 奥术法师</button>
+            <button class="trainer-tab" data-class="warrior">⚔ 无畏战士</button>
+            <button class="trainer-tab" data-class="hunter">➶ 荒野猎人</button>
+          </div>
+          <div class="trainer-gold">金币<strong id="trainer-gold">0</strong></div>
+        </div>
+        <div class="equip-bar">
+          <div id="equip-basic" class="equip-slot"></div>
+          <div id="equip-active" class="equip-slot"></div>
+          <div id="equip-active2" class="equip-slot"></div>
+          <!-- 第 20 项：第三/第四主动技能槽位 -->
+          <div id="equip-active3" class="equip-slot"></div>
+          <div id="equip-active4" class="equip-slot"></div>
+        </div>
+        <div id="skill-list" class="skill-list"></div>
+        <p class="trainer-tip">左键：学习 / 装备 · 右键：卸下 · 每个职业可装备 1 个基础技能与 4 个主动技能（Q / R / C / V 释放） · 技能的强化效果在战场升级卡中选择</p>
+      </div>
+    </section>
+
+    <!-- 副本选择 -->
+    <section id="dungeons" class="screen hidden">
+      <button id="dungeons-back" class="back-arrow" title="返回首页">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">冒险模式</div>
+        <h2 class="trainer-title">选择副本</h2>
+        <p class="tagline">四大首发副本 · 难度与产出相当 · 每局约 15 分钟 · 击败尾王即可通关 · 通关三选一获得副本套装图纸</p>
+        <div id="dg-tabs" class="dg-tabs">
+          <button class="dg-tab active" data-tab="dungeon">地下城副本</button>
+          <button class="dg-tab" data-tab="raid">团队副本</button>
+        </div>
+        <div id="dungeon-list" class="dungeon-list"></div>
+      </div>
+    </section>
+
+    <!-- 副本通关奖励 -->
+    <section id="dungeon-reward" class="screen modal hidden">
+      <div class="modal-panel level-panel">
+        <div class="eyebrow">副本宝藏</div>
+        <h2>套装图纸 · 三选一</h2>
+        <p>研习后，该装备将在副本冒险中有几率掉落为装备卡牌</p>
+        <div id="reward-cards" class="upgrade-cards"></div>
+      </div>
+    </section>
+
+    <!-- 熔火之心团本掉落结算 -->
+    <section id="raid-loot" class="screen modal hidden">
+      <div class="modal-panel raid-panel">
+        <div class="eyebrow">熔火之心 · 战利品结算</div>
+        <h2>团队掉落</h2>
+        <p class="raid-hint">点击骰子 roll 点（1-100），点击红叉放弃；倒计时结束未操作视为放弃。多人同时需求时，roll 点最高者获得。</p>
+        <p id="raid-stat" class="raid-stat">存活 00:00 · 击败 0 · 等级 1 · 金币 0</p>
+        <div class="raid-body">
+          <div id="raid-items" class="raid-items"></div>
+          <div class="raid-chat">
+            <div id="raid-chat-log" class="raid-chat-log"></div>
+            <div class="raid-chat-input">
+              <input id="raid-chat-input" maxlength="60" placeholder="说点什么…">
+              <button id="raid-chat-send" class="primary slim">发送</button>
+            </div>
+          </div>
+        </div>
+        <div class="raid-foot">
+          <button id="raid-close" class="secondary">全部放弃并离开</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 成就 -->
+    <section id="achievements" class="screen hidden">
+      <button id="achv-back" class="back-arrow" title="返回首页">←</button>
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="eyebrow">成就</div>
+        <h2 class="trainer-title">远征功勋</h2>
+        <div class="trainer-top">
+          <div id="achv-tabs" class="trainer-tabs">
+            <button class="achv-tab selected" data-filter="all">全部</button>
+            <button class="achv-tab" data-filter="adv">通用</button>
+            <button class="achv-tab" data-filter="dungeon">冒险</button>
+            <button class="achv-tab" data-filter="raid">团本</button>
+            <button class="achv-tab" data-filter="endless">无尽</button>
+          </div>
+          <div class="trainer-gold">进度<strong id="achv-progress">0 / 0</strong></div>
+        </div>
+        <div id="achv-grid" class="achv-grid"></div>
+      </div>
+    </section>
+
+    <!-- 战场 HUD -->
+    <section id="hud" class="hud hidden" aria-live="polite">
+      <div class="topbar">
+        <div class="portrait" id="portrait">✦</div>
+        <div class="vitals">
+          <div class="identity"><strong id="hero-name">奥术法师</strong><span id="level">Lv.1</span></div>
+          <div class="bar health"><i id="hp-bar"></i><span id="hp-text">85 / 85</span></div>
+          <div class="bar xp"><i id="xp-bar"></i></div>
+        </div>
+        <div class="timer"><span id="time">05:00</span><small>存活时间</small></div>
+        <div class="counters">
+          <div><strong id="kills">0</strong><span>击败</span></div>
+          <div><strong id="gold">0</strong><span>金币</span></div>
+        </div>
+        <button id="pause" class="icon-button" aria-label="暂停">Ⅱ</button>
+      </div>
+      <div id="boss-wrap" class="boss-wrap hidden"><span id="boss-name">精英</span><div class="boss-bar"><i id="boss-bar"></i></div></div>
+      <div id="gear-bar" class="gear-bar"></div>
+      <div id="stats-hud" class="stats-hud"></div>
+      <div id="party-panel" class="party-panel hidden"></div>
+      <div class="bottom-hud">
+        <div class="ability"><span class="ability-icon" id="basic-icon">✦</span><div><strong id="attack-name">奥术飞弹</strong><small>自动攻击</small></div></div>
+        <div class="ability revive hidden" id="revive-ability"><span class="ability-icon" id="revive-icon">✚</span><div><strong id="revive-name">战复</strong><small id="revive-text">F · 就绪</small></div><i id="revive-cooldown"></i><b id="revive-progress"></b></div>
+        <div class="ability act hidden" id="active-ability"><span class="ability-icon" id="active-icon">◉</span><div><strong id="active-name">寒冰宝珠</strong><small id="active-text">Q · 就绪</small></div><i id="active-cooldown"></i></div>
+        <div class="ability act hidden" id="active-ability2"><span class="ability-icon" id="active-icon2">◉</span><div><strong id="active-name2">技能 II</strong><small id="active-text2">R · 就绪</small></div><i id="active-cooldown2"></i></div>
+        <!-- 第 20 项：主动技能携带上限提升至 4 个（第三/第四槽位 · C / V 键） -->
+        <div class="ability act hidden" id="active-ability3"><span class="ability-icon" id="active-icon3">◉</span><div><strong id="active-name3">技能 III</strong><small id="active-text3">C · 就绪</small></div><i id="active-cooldown3"></i></div>
+        <div class="ability act hidden" id="active-ability4"><span class="ability-icon" id="active-icon4">◉</span><div><strong id="active-name4">技能 IV</strong><small id="active-text4">V · 就绪</small></div><i id="active-cooldown4"></i></div>
+        <div class="ability pot hidden" id="pot-ability"><span class="ability-icon" id="pot-icon">✚</span><div><strong id="pot-name">治疗药水</strong><small id="pot-text">E · 就绪</small></div><i id="pot-cooldown"></i></div>
+        <div class="ability dash"><span class="ability-icon" id="dash-icon">➤</span><div><strong>疾风闪现</strong><small id="dash-text">空格 · 就绪</small></div><i id="dash-cooldown"></i></div>
+      </div>
+      <div id="joystick" class="joystick"><i></i></div>
+      <button id="mobile-pot" class="mobile-pot">药水</button>
+      <button id="mobile-active" class="mobile-active">技能</button>
+      <button id="mobile-active2" class="mobile-active2">技能II</button>
+      <!-- 第 20 项：主动技能 4 槽位对应的移动端按钮 -->
+      <button id="mobile-active3" class="mobile-active3">技能III</button>
+      <button id="mobile-active4" class="mobile-active4">技能IV</button>
+      <button id="mobile-revive" class="mobile-revive">战复</button>
+      <button id="mobile-dash" class="mobile-dash">闪现</button>
+    </section>
+    <div id="announcement" class="announcement" aria-live="assertive"></div>
+
+    <!-- 装备替换（满 5 件时选择替换目标） -->
+    <section id="gear-replace" class="screen modal hidden">
+      <div class="modal-panel level-panel">
+        <div class="eyebrow">装备栏已满</div>
+        <h2>选择一件装备替换</h2>
+        <p id="gr-new">新装备</p>
+        <p id="gear-replace-live" class="live-hint hidden">⚔ 联机模式 · 战斗仍在继续，请快速抉择！</p>
+        <div id="replace-cards" class="upgrade-cards"></div>
+        <button id="gr-cancel" class="text-button">放弃新装备</button>
+      </div>
+    </section>
+
+    <section id="levelup" class="screen modal hidden">
+      <div class="modal-panel level-panel">
+        <div class="eyebrow">LEVEL UP</div>
+        <h2>选择一项强化</h2>
+        <p>时间已暂停 · 每场远征都有不同构筑</p>
+        <p id="levelup-live" class="live-hint hidden">⚔ 联机模式 · 战斗仍在继续，请快速抉择！</p>
+        <div id="upgrade-cards" class="upgrade-cards"></div>
+      </div>
+    </section>
+
+    <section id="pause-screen" class="screen modal hidden">
+      <div class="modal-panel compact">
+        <div class="eyebrow">远征暂停</div><h2>稍作休整</h2>
+        <button id="resume" class="primary">继续战斗</button>
+        <button id="restart-pause" class="secondary">重新开始</button>
+        <button id="quit" class="text-button">返回职业选择</button>
+      </div>
+    </section>
+
+    <section id="result" class="screen modal hidden">
+      <div class="modal-panel compact result-panel">
+        <div id="result-icon" class="result-icon">☠</div>
+        <div id="result-label" class="eyebrow">远征结束</div>
+        <h2 id="result-title">英雄倒下了</h2>
+        <p id="result-subtitle">每一次失败，都是下一场胜利的序章。</p>
+        <div class="result-stats">
+          <div><strong id="result-time">00:00</strong><span>存活</span></div>
+          <div><strong id="result-kills">0</strong><span>击败</span></div>
+          <div><strong id="result-level">1</strong><span>等级</span></div>
+          <div><strong id="result-gold">0</strong><span>金币</span></div>
+        </div>
+        <div id="result-loot" class="result-loot"></div>
+        <button id="retry" class="primary">再次远征</button>
+        <button id="result-menu" class="text-button">更换英雄</button>
+      </div>
+    </section>
+
+    <div id="toast"></div>
+  </main>
+  <script src="./assets/icons-data.js"></script>
+  <script src="./assets/icons/keys.js"></script>
+  <script src="./vendor/spine-canvas.js"></script>
+  <script src="./spine.js"></script>
+  <script src="./assets.mjs"></script>
+  <script src="./audio.js"></script>
+  <script src="./net-config.js"></script>
+  <script src="./net.js"></script>
+  <script src="./fx.js"></script>
+  <script src="./game.js"></script>
+</body>
+</html>

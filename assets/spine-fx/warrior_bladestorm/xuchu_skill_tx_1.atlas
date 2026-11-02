@@ -1,0 +1,230 @@
+xuchu_skill_tx_1.png
+size: 1896, 595
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+chutu/atk/1dl1glow/1dl1glow_0000
+  rotate: false
+  xy: 1509, 347
+  size: 39, 40
+  orig: 39, 41
+  offset: 0, 1
+  index: -1
+chutu/atk/3bd2/3bd2_0000
+  rotate: false
+  xy: 991, 276
+  size: 35, 36
+  orig: 35, 36
+  offset: 0, 0
+  index: -1
+chutu/skill/10ring/10ring_0038
+  rotate: true
+  xy: 160, 1
+  size: 248, 254
+  orig: 268, 270
+  offset: 12, 13
+  index: -1
+chutu/skill/10ring/10ring_0040
+  rotate: false
+  xy: 710, 15
+  size: 230, 256
+  orig: 268, 270
+  offset: 6, 7
+  index: -1
+chutu/skill/10ring/10ring_0042
+  rotate: false
+  xy: 943, 21
+  size: 229, 250
+  orig: 268, 270
+  offset: 8, 13
+  index: -1
+chutu/skill/11ql/11ql_0038
+  rotate: true
+  xy: 1556, 36
+  size: 134, 131
+  orig: 168, 180
+  offset: 33, 22
+  index: -1
+chutu/skill/11ql/11ql_0040
+  rotate: true
+  xy: 1403, 7
+  size: 153, 150
+  orig: 168, 180
+  offset: 5, 15
+  index: -1
+chutu/skill/11ql/11ql_0042
+  rotate: true
+  xy: 1175, 10
+  size: 82, 172
+  orig: 168, 180
+  offset: 57, 4
+  index: -1
+chutu/skill/2dg/2dg_0038
+  rotate: false
+  xy: 1534, 173
+  size: 119, 171
+  orig: 121, 174
+  offset: 2, 1
+  index: -1
+chutu/skill/3ql/3ql_0038
+  rotate: false
+  xy: 1690, 12
+  size: 114, 119
+  orig: 116, 121
+  offset: 1, 2
+  index: -1
+chutu/skill/3ql/3ql_0040
+  rotate: true
+  xy: 1690, 134
+  size: 110, 121
+  orig: 116, 121
+  offset: 5, 0
+  index: -1
+chutu/skill/3ql/3ql_0042
+  rotate: true
+  xy: 1774, 480
+  size: 114, 121
+  orig: 116, 121
+  offset: 1, 0
+  index: -1
+chutu/skill/3ql/3ql_0044
+  rotate: true
+  xy: 1774, 363
+  size: 114, 121
+  orig: 116, 121
+  offset: 2, 0
+  index: -1
+chutu/skill/3ql/3ql_0046
+  rotate: false
+  xy: 1656, 266
+  size: 115, 121
+  orig: 116, 121
+  offset: 1, 0
+  index: -1
+chutu/skill/3ql/3ql_0048
+  rotate: true
+  xy: 1774, 247
+  size: 113, 121
+  orig: 116, 121
+  offset: 3, 0
+  index: -1
+chutu/skill/5xz1/5xz1_0026
+  rotate: false
+  xy: 1469, 390
+  size: 198, 204
+  orig: 207, 211
+  offset: 5, 5
+  index: -1
+chutu/skill/5xz2/5xz2_0027
+  rotate: true
+  xy: 1175, 95
+  size: 217, 213
+  orig: 220, 220
+  offset: 2, 5
+  index: -1
+chutu/skill/6czzd/6czzd_0010
+  rotate: false
+  xy: 1670, 496
+  size: 101, 98
+  orig: 248, 158
+  offset: 66, 0
+  index: -1
+chutu/skill/6czzd/6czzd_0011
+  rotate: true
+  xy: 1391, 163
+  size: 175, 140
+  orig: 248, 158
+  offset: 30, 0
+  index: -1
+chutu/skill/6czzd/6czzd_0013
+  rotate: true
+  xy: 1, 1
+  size: 242, 156
+  orig: 248, 158
+  offset: 1, 1
+  index: -1
+chutu/skill/6czzd/6czzd_0015
+  rotate: true
+  xy: 417, 1
+  size: 248, 149
+  orig: 248, 158
+  offset: 0, 0
+  index: -1
+chutu/skill/6czzd/6czzd_0017
+  rotate: true
+  xy: 569, 11
+  size: 238, 138
+  orig: 248, 158
+  offset: 5, 1
+  index: -1
+chutu/skill/6czzd/6czzd_0019
+  rotate: false
+  xy: 1315, 341
+  size: 191, 44
+  orig: 248, 158
+  offset: 26, 2
+  index: -1
+chutu/skill/6czzd2/6czzd2_0015
+  rotate: false
+  xy: 1271, 339
+  size: 41, 46
+  orig: 47, 50
+  offset: 3, 2
+  index: -1
+chutu/skill/6czzd3/6czzd3_0015
+  rotate: true
+  xy: 672, 252
+  size: 19, 33
+  orig: 19, 33
+  offset: 0, 0
+  index: -1
+chutu/skill/7xl/7xl_0029
+  rotate: false
+  xy: 34, 252
+  size: 316, 342
+  orig: 316, 342
+  offset: 0, 0
+  index: -1
+chutu/skill/7xl/7xl_0031
+  rotate: false
+  xy: 353, 252
+  size: 316, 342
+  orig: 316, 342
+  offset: 0, 0
+  index: -1
+chutu/skill/7xl/7xl_0033
+  rotate: false
+  xy: 672, 274
+  size: 316, 320
+  orig: 316, 342
+  offset: 0, 0
+  index: -1
+chutu/skill/7xl/7xl_0035
+  rotate: true
+  xy: 991, 315
+  size: 279, 277
+  orig: 316, 342
+  offset: 37, 4
+  index: -1
+chutu/skill/7xl/7xl_0037
+  rotate: true
+  xy: 1271, 388
+  size: 206, 195
+  orig: 316, 342
+  offset: 75, 40
+  index: -1
+chutu/skill/7xl2/7xl2_0035
+  rotate: true
+  xy: 1, 246
+  size: 348, 30
+  orig: 354, 34
+  offset: 3, 2
+  index: -1
+chutu/skill/8lz/8lz_0040
+  rotate: true
+  xy: 1350, 41
+  size: 51, 50
+  orig: 54, 54
+  offset: 1, 2
+  index: -1
+

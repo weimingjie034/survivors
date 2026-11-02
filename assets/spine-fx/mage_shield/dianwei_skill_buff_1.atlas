@@ -1,0 +1,146 @@
+dianwei_skill_buff_1.png
+size: 256, 1948
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+chutu/bf/bf_00050
+  rotate: false
+  xy: 3, 327
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00052
+  rotate: false
+  xy: 3, 165
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00054
+  rotate: false
+  xy: 3, 1785
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00056
+  rotate: false
+  xy: 3, 1623
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00058
+  rotate: false
+  xy: 3, 813
+  size: 125, 160
+  orig: 136, 181
+  offset: 8, 11
+  index: -1
+chutu/bf/bf_00060
+  rotate: false
+  xy: 3, 3
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00062
+  rotate: false
+  xy: 127, 327
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00064
+  rotate: false
+  xy: 127, 165
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00066
+  rotate: false
+  xy: 127, 3
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00068
+  rotate: false
+  xy: 130, 813
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00070
+  rotate: false
+  xy: 3, 1461
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00072
+  rotate: false
+  xy: 3, 1299
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00074
+  rotate: false
+  xy: 3, 651
+  size: 125, 160
+  orig: 136, 181
+  offset: 8, 11
+  index: -1
+chutu/bf/bf_00076
+  rotate: false
+  xy: 130, 651
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00078
+  rotate: false
+  xy: 132, 1785
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00080
+  rotate: false
+  xy: 132, 1623
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+chutu/bf/bf_00082
+  rotate: false
+  xy: 3, 1137
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00084
+  rotate: false
+  xy: 3, 975
+  size: 127, 160
+  orig: 136, 181
+  offset: 6, 11
+  index: -1
+chutu/bf/bf_00086
+  rotate: false
+  xy: 3, 489
+  size: 125, 160
+  orig: 136, 181
+  offset: 8, 11
+  index: -1
+chutu/bf/bf_00088
+  rotate: false
+  xy: 132, 1461
+  size: 122, 160
+  orig: 136, 181
+  offset: 9, 11
+  index: -1
+

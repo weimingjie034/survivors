@@ -1,0 +1,118 @@
+huangyueying_skill_beaten_2.png
+size: 1215, 203
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+chutu/skill/z1/z1_26
+  rotate: false
+  xy: 1110, 17
+  size: 77, 63
+  orig: 195, 116
+  offset: 68, 20
+  index: -1
+chutu/skill/z1/z1_27
+  rotate: true
+  xy: 1144, 82
+  size: 119, 69
+  orig: 195, 116
+  offset: 43, 17
+  index: -1
+chutu/skill/z1/z1_28
+  rotate: false
+  xy: 950, 16
+  size: 158, 95
+  orig: 195, 116
+  offset: 24, 11
+  index: -1
+chutu/skill/z1/z1_29
+  rotate: false
+  xy: 570, 98
+  size: 184, 103
+  orig: 195, 116
+  offset: 5, 5
+  index: -1
+chutu/skill/z1/z1_30
+  rotate: false
+  xy: 382, 98
+  size: 186, 103
+  orig: 195, 116
+  offset: 4, 5
+  index: -1
+chutu/skill/z1/z1_31
+  rotate: false
+  xy: 193, 95
+  size: 187, 106
+  orig: 195, 116
+  offset: 4, 4
+  index: -1
+chutu/skill/z1/z1_32
+  rotate: false
+  xy: 2, 95
+  size: 189, 106
+  orig: 195, 116
+  offset: 3, 4
+  index: -1
+chutu/skill/z1/z1_33
+  rotate: false
+  xy: 389, 8
+  size: 189, 88
+  orig: 195, 116
+  offset: 3, 4
+  index: -1
+chutu/skill/z1/z1_34
+  rotate: false
+  xy: 197, 4
+  size: 190, 89
+  orig: 195, 116
+  offset: 2, 4
+  index: -1
+chutu/skill/z1/z1_36
+  rotate: false
+  xy: 950, 113
+  size: 192, 88
+  orig: 195, 116
+  offset: 1, 4
+  index: -1
+chutu/skill/z1/z1_38
+  rotate: false
+  xy: 2, 2
+  size: 193, 91
+  orig: 195, 116
+  offset: 0, 4
+  index: -1
+chutu/skill/z1/z1_40
+  rotate: false
+  xy: 756, 111
+  size: 192, 90
+  orig: 195, 116
+  offset: 1, 5
+  index: -1
+chutu/skill/z1/z1_42
+  rotate: false
+  xy: 580, 8
+  size: 182, 88
+  orig: 195, 116
+  offset: 7, 6
+  index: -1
+chutu/skill/z1/z1_44
+  rotate: false
+  xy: 764, 27
+  size: 178, 82
+  orig: 195, 116
+  offset: 9, 8
+  index: -1
+chutu/skill/z1/z1_46
+  rotate: true
+  xy: 764, 8
+  size: 17, 33
+  orig: 195, 116
+  offset: 80, 35
+  index: -1
+chutu/skill/z1/z1_48
+  rotate: false
+  xy: 944, 102
+  size: 4, 7
+  orig: 195, 116
+  offset: 92, 36
+  index: -1
+
