@@ -42,6 +42,10 @@
             <i>⚔</i>
             <span><strong>无尽模式</strong><small>无尽围攻 · 只产成就与药水</small></span>
           </button>
+          <button id="nav-td" class="home-btn">
+            <i>◈</i>
+            <span><strong>塔防模式</strong><small>守卫艾泽拉斯之心 · 4 路防守 · 30 波</small></span>
+          </button>
           <button id="nav-trainer" class="home-btn">
             <i>✦</i>
             <span><strong>职业训练师</strong><small>花费金币学习技能，自由装备</small></span>
@@ -326,6 +330,7 @@
             <button class="achv-tab" data-filter="dungeon">冒险</button>
             <button class="achv-tab" data-filter="raid">团本</button>
             <button class="achv-tab" data-filter="endless">无尽</button>
+            <button class="achv-tab" data-filter="td">塔防</button>
           </div>
           <div class="trainer-gold">进度<strong id="achv-progress">0 / 0</strong></div>
         </div>
@@ -335,6 +340,59 @@
 
     <!-- 战场 HUD -->
     <section id="hud" class="hud hidden" aria-live="polite">
+      <!-- ===== 塔防模式专属 HUD（gameMode='td' 时显示，其余模式隐藏）===== -->
+      <div id="td-top" class="td-top hidden">
+        <div class="td-heart">
+          <span class="td-label">艾泽拉斯之心</span>
+          <div class="td-bar heart"><i id="td-heart-fill"></i></div>
+          <strong id="td-heart-text">30 / 30</strong>
+        </div>
+        <div class="td-wave">
+          <span class="td-label">波次</span>
+          <div class="td-bar wave"><i id="td-wave-fill"></i></div>
+          <strong id="td-wave-text">1 / 30</strong>
+        </div>
+        <div class="td-leak" id="td-leak">
+          <span class="td-label">漏怪</span><strong id="td-leak-text">0 / 30</strong>
+        </div>
+      </div>
+
+      <div id="td-commands" class="td-commands hidden">
+        <button type="button" class="td-cmd" id="td-cmd-focus" data-cmd="focus"><span>◎</span><small>集火</small></button>
+        <button type="button" class="td-cmd" id="td-cmd-sweep" data-cmd="sweep"><span>✳</span><small>清场</small></button>
+        <button type="button" class="td-cmd" id="td-cmd-exec" data-cmd="exec"><span>☠</span><small>斩首</small></button>
+        <button type="button" class="td-cmd" id="td-cmd-guard" data-cmd="guard"><span>◈</span><small>守序</small></button>
+        <span class="td-cmd-sep"></span>
+        <button type="button" class="td-cmd" id="td-cmd-advance" data-cmd="advance"><span>➤</span><small>突进</small></button>
+        <button type="button" class="td-cmd" id="td-cmd-blink" data-cmd="blink"><span>✦</span><small>闪现</small></button>
+      </div>
+
+      <div id="td-pad-state" class="td-pad-state hidden">
+        <span id="td-hero-label">奥术法师</span>
+        <span class="td-sep-dot">·</span>
+        <span id="td-pad-label">② 号阵</span>
+        <span class="td-sep-dot">·</span>
+        <span id="td-cover-label">覆盖 ▓▓▓░</span>
+      </div>
+
+      <!-- 局内核心（塔防版的「装备」）—— 只在本局生效，不入存档 -->
+      <div id="td-core-slots" class="td-core-slots hidden"></div>
+
+      <!-- 核心三选一弹层（击杀掉落 · 不暂停战斗）-->
+      <section id="td-core" class="screen modal hidden">
+        <div class="modal-panel level-panel">
+          <div class="eyebrow">CORE</div>
+          <h2 id="td-core-title">拾取核心</h2>
+          <p id="td-core-desc">核心只在本局生效 · 战斗不会暂停 · 同名核心可叠加（有等级上限）</p>
+          <div id="td-core-cards" class="upgrade-cards"></div>
+          <button id="td-core-skip" class="text-button">放弃本次核心</button>
+        </div>
+      </section>
+
+      <div id="td-minimap" class="td-minimap hidden">
+        <canvas id="td-minimap-canvas" width="256" height="160"></canvas>
+      </div>
+
       <div class="topbar">
         <div class="portrait" id="portrait">✦</div>
         <div class="vitals">
@@ -430,6 +488,7 @@
   <script src="./net-config.js"></script>
   <script src="./net.js"></script>
   <script src="./fx.js"></script>
+  <script src="./td.js"></script>
   <script src="./game.js"></script>
 </body>
 </html>

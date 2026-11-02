@@ -26,6 +26,12 @@
   const ACTIVE_MAX_COUNT = ACTIVE_SLOTS.length;
   const ACTIVE_HOTKEYS = { KeyQ: 1, KeyR: 2, KeyC: 3, KeyV: 4 };
 
+  // ===== 塔防模式数据（td.js：地图 / 波次 / 配平 / 卡池 / 几何）=====
+  // 独立文件的原因：TD 的地图坐标与数值表都由 tools/td/ 的生成器产出，
+  // 放在独立文件里可以脱离游戏运行时单独跑校验（见 tools/td/selftest.mjs）。
+  const TD = window.TD;
+  if (!TD) console.warn('[塔防] td.js 未加载，塔防模式不可用');
+
   const heroes = {
     mage: { name: '奥术法师', icon: '✦', color: '#70d8f2', hp: 85, damage: 22, speed: 220, rate: .54, range: 560, armor: 0 },
     warrior: { name: '无畏战士', icon: '⚔', color: '#ed9a6d', hp: 125, damage: 28, speed: 205, rate: .68, range: 118, armor: 2 },
@@ -993,7 +999,19 @@
     { id: 'endless_dex', icon: '❖', name: '无尽首领图鉴', desc: '在无尽模式中见过 12 位不同的首领', cat: 'endless', check: s => (s.stats.endlessBossSeen || []).length >= 12, reward: { potion: 'pot_fear' } },
     { id: 'endless_legion', icon: '☠', name: '无尽军团', desc: '无尽模式累计击败 2000 个敌人', cat: 'endless', check: s => (s.stats.endlessKills || 0) >= 2000, reward: { potion: 'pot_mutilate' } },
     { id: 'endless_alchemy', icon: '⚗', name: '无尽炼金', desc: '无尽模式累计收集 8 瓶药水', cat: 'endless', check: s => (s.stats.endlessPotions || 0) >= 8, reward: { potion: 'pot_chaos' } },
-    { id: 'endless_marathon', icon: '⏳', name: '无尽马拉松', desc: '无尽模式累计存活满 60 分钟', cat: 'endless', check: s => (s.stats.endlessRuns || 0) >= 1 && (s.stats.endlessTotalTime || 0) >= 3600, reward: { potion: 'pot_diamond' } }
+    { id: 'endless_marathon', icon: '⏳', name: '无尽马拉松', desc: '无尽模式累计存活满 60 分钟', cat: 'endless', check: s => (s.stats.endlessRuns || 0) >= 1 && (s.stats.endlessTotalTime || 0) >= 3600, reward: { potion: 'pot_diamond' } },
+    // ===== 塔防模式专属成就组 =====
+    // 塔防不产装备（局内核心不入存档）→ 持久产出统一走成就奖励金币。
+    { id: 'td_first', icon: '◈', name: '初次守卫', desc: '完成一次塔防守卫', cat: 'td', check: s => (s.stats.tdRuns || 0) >= 1, reward: { gold: 120 } },
+    { id: 'td_wave10', icon: '⛨', name: '稳固防线', desc: '单局守住 10 波', cat: 'td', check: s => (s.stats.tdBestWave || 0) >= 10, reward: { gold: 180 } },
+    { id: 'td_wave20', icon: '❖', name: '铜墙铁壁', desc: '单局守住 20 波', cat: 'td', check: s => (s.stats.tdBestWave || 0) >= 20, reward: { gold: 280 } },
+    { id: 'td_clear', icon: '♛', name: '心之守护', desc: '守住全部 30 波', cat: 'td', check: s => (s.stats.tdWavesCleared || 0) >= 30, reward: { gold: 600 } },
+    { id: 'td_perfect', icon: '✧', name: '毫发无损', desc: '零漏怪守住全部 30 波', cat: 'td', check: s => (s.stats.tdLeakBest != null && s.stats.tdLeakBest <= 0) && (s.stats.tdWavesCleared || 0) >= 30, reward: { gold: 800 } },
+    { id: 'td_slay300', icon: '⚔', name: '屠戮者', desc: '单局击败 300 个敌人', cat: 'td', check: s => (s.stats.tdMaxKills || 0) >= 300, reward: { gold: 220 } },
+    { id: 'td_slays1000', icon: '☠', name: '绞肉机', desc: '塔防模式累计击败 1000 个敌人', cat: 'td', check: s => (s.stats.tdKills || 0) >= 1000, reward: { gold: 320 } },
+    { id: 'td_core12', icon: '✸', name: '核心收藏家', desc: '单局拾取 12 个局内核心', cat: 'td', check: s => (s.stats.tdMaxCores || 0) >= 12, reward: { gold: 200 } },
+    { id: 'td_coop4', icon: '⬟', name: '四人同心', desc: '四人联机完成一次塔防守卫', cat: 'td', check: s => (s.stats.tdCoopClears || 0) >= 1, reward: { gold: 450 } },
+    { id: 'td_noleak10', icon: '◉', name: '滴水不漏', desc: '单局守住 10 波且零漏怪', cat: 'td', check: s => (s.stats.tdLeakBest != null && s.stats.tdLeakBest <= 0) && (s.stats.tdBestWave || 0) >= 10, reward: { gold: 260 } }
   ];
   const itemInfo = (id) => ITEMS[id] || MATERIALS[id];
   const entryName = (e) => itemInfo(e.id).name;
@@ -1314,13 +1332,14 @@
   }
 
   const ui = {};
-  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close'].forEach(id => ui[id] = $(id));
+  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','nav-td','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close'].forEach(id => ui[id] = $(id));
 
   let width = innerWidth, height = innerHeight, dpr = 1;
   let selectedHero = 'mage';
   let trainerClass = 'mage';
   let bagClass = 'mage';
   let pendingDungeon = null; // null = 冒险（无尽）模式
+  let pendingMode = null;   // 'td' = 塔防模式；null = 常规（无尽/副本）
   let dungeonTab = 'dungeon'; // 副本页 Tab：dungeon（地下城副本） / raid（团队副本）
   let achvFilter = 'all';
   let mcOrigin = 'home'; // 模式选择页的返回去向
@@ -1341,10 +1360,16 @@
   const hash = (x, y) => { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); };
 
   function resize() {
-    width = innerWidth; height = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
+    width = innerWidth; height = innerHeight;
+    // ★ 移动端降级：dpr 上限 1.5（省 44% 像素填充）。不砍任何数值，只砍表现层。
+    dpr = Math.min(devicePixelRatio || 1, tdIsMobile() ? 1.5 : 2);
     canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
     canvas.style.width = width + 'px'; canvas.style.height = height + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  /** 是否移动端（窄屏或触屏）—— 用于性能降级与布局分支 */
+  function tdIsMobile() {
+    return (innerWidth <= 820) || (navigator.maxTouchPoints > 0 && innerWidth <= 1024);
   }
   addEventListener('resize', resize); resize();
 
@@ -1388,9 +1413,12 @@
       gear: [], gearDrops: 0, bossAliveT: 0, _gearSig: null, _statsAt: 0,
       // 装备栏已满时的两阶段选择：阶段一选中待带入的新装备（gearPending），阶段二指定替换目标
       gearPending: null,
+      // ★ 塔防局内核心（TD 版的「装备」）：只在本局生效，不入存档
+      tdCores: [], tdCoreDrops: 0, tdCoreOpen: false,
       // 熔火之心团本：地板延时预警（敌方技能红色区域，由淡转明后触发伤害）
       telegraphs: [],
-      gameMode: pendingDungeon ? 'dungeon' : 'adventure', dungeon: pendingDungeon ? DUNGEONS[pendingDungeon] : null, dungeonId: pendingDungeon || null };
+      gameMode: pendingMode === 'td' ? 'td' : (pendingDungeon ? 'dungeon' : 'adventure'),
+      dungeon: pendingDungeon ? DUNGEONS[pendingDungeon] : null, dungeonId: pendingDungeon || null };
     // #51 联机会话初始化（房间已开始 → 本局为联机局）
     const room = (typeof NET !== 'undefined' && NET.connected) ? NET.room : null;
     if (room && room.started) {
@@ -1416,6 +1444,7 @@
     announce(game.dungeon ? `进入冒险 · ${game.dungeon.name}` : '无尽模式 · 无尽围攻', '#ffe0a0', 2);
     if (game.coop) announce(`组队挑战 · ${game.coop.n} 名英雄 · 敌人强度提升`, '#9fd3ff', 3); // #51 主机侧自动广播给全员
     AUDIO.start(pendingDungeon || 'adventure'); // 程序化环境音乐（按副本主题）
+    if (game.gameMode === 'td') tdInit();   // ★ 塔防模式初始化（阵位 / 路 / HUD）
     syncBeastKing(p); // 需求 12：携带「兽王」即永久召唤幽灵狼（开局按技能与卡牌重建兽群）
     updateHUD();
   }
@@ -1464,6 +1493,7 @@
 
   function hideAll() {
     ui.hud.classList.add('hidden');
+    if (typeof TDR !== 'undefined') tdTeardown();   // ★ 塔防 HUD 随页面一起收起
     for (const id of ['home','menu','levelup','pause-screen','result','backpack','trainer','profession','achievements','gearpick','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); } // #53 补上联机三页，否则返回时旧页残留遮挡；#60 补 gear-detail，否则装备详情弹层会永久全屏盖住 HUD
   }
   function showScreen(id) { ui[id].classList.remove('hidden'); ui[id].classList.add('active'); }
@@ -1471,6 +1501,7 @@
   function showHome() {
     if (typeof NET !== 'undefined' && NET.connected && NET.room) NET.leaveRoom(); // #51 回主界面自动退房间
     mode = 'home'; game = null; keys.clear(); FX.clear();
+    pendingMode = null; pendingDungeon = null;   // ★ 离开页面时清掉待开始模式
     hideAll(); showScreen('home');
     ui['bag-gold'].textContent = save.gold;
     updateBest();
@@ -1549,8 +1580,904 @@
   }
 
   // ===== #51 局域网联机：模式选择 → 房间列表 → 房间大厅 =====
+  // ==========================================================================
+  // ===== 塔防模式（gameMode = 'td'）运行时 =====
+  // ==========================================================================
+  // 玩法契约（详见 coop-roguelite-design/塔防模式-*.md）：
+  //   ① 英雄无敌 —— 不走 hurtPlayer，任何伤害直接忽略
+  //   ② 英雄不能自由移动 —— 只能在 20 个「传送阵」节点间瞬移
+  //   ③ 怪物沿固定 4 条路径行进，不攻击英雄，抵达心脏即计漏怪
+  //   ④ 主动技能全自动 —— 选目标的哲学由「战术指令」决定（塔防版的操作）
+  //   ⑤ 选卡不暂停 —— 复用现有 live 分支（pendingLevels / gearDrops 本来就有队列）
+  //   ⑥ 怪物不释放伤害技能
+  //   ⑦ 1 人局只激活下方两条路（用户拍板）；漏怪容差按激活路数缩放
+  const TDR = {
+    on: false,
+    wave: 0, waveT: 0, waveLen: TD.WAVES.waveSeconds,
+    queue: [],               // 待出怪队列 [{ lane, kind, elite }]
+    spawnAcc: 0, spawnInterval: 1,
+    leaks: 0, leakLimit: 30,
+    lanes: [], laneOwner: {},
+    node: null,              // 当前阵位节点
+    tpCd: 0, tpCdMax: TD.MAP.tpCd, rootLock: 0,
+    // ★ 修正项统一走「基础值 + 乘算系数」，保证 recomputePlayer 重放卡牌时幂等
+    reachBase: TD.MAP.reach, reachMul: 1, crossReach: 0,
+    cmd: 'focus', dualCmd: false, focusDeep: false,
+    guards: [],              // 守卫（绑定阵位，玩家传送时留在原阵）
+    cdScale: 1, threshold: 1, doubleCast: 0,
+    xpBonus: 0, goldBonus: 0,
+    burnOnHit: 0, chainKill: 0, burstStack: 0, executeTh: 0, armorPierce: 0,
+    extraCast: 8, castCounter: 0,
+    guardArmor: 0, guardMax: 6, aidBonus: .05, beacon: false, guardPact: 0,
+    rescueCd: 12, rally: false, rallyT: 0, soulLink: false,
+    viewPad: null,           // 联机：正在观看的队友阵位（null = 自己）
+    camOff: { x: 0, y: 0 },  // 拖动平移的镜头偏移
+    camFree: 0,              // >0 表示「脱离跟随」的剩余秒数
+    drag: null,              // 触屏拖动状态
+    coverN: 0, coverLo: 0, coverHi: 0, coverLane: null,
+    replaying: false,        // recomputePlayer 重放卡牌期间为 true（抑制一次性效果）
+    pendingDouble: null, lastPick: null
+  };
+
+  // ---------- TD 专属 HUD 元素（不进 ui 批量表，独立取一次）----------
+  const TDu = {
+    top: $('td-top'), heartFill: $('td-heart-fill'), heartText: $('td-heart-text'),
+    waveFill: $('td-wave-fill'), waveText: $('td-wave-text'),
+    leak: $('td-leak'), leakText: $('td-leak-text'),
+    cmds: $('td-commands'), padState: $('td-pad-state'),
+    heroLabel: $('td-hero-label'), padLabel: $('td-pad-label'), coverLabel: $('td-cover-label'),
+    minimap: $('td-minimap'), minimapCv: $('td-minimap-canvas'),
+    core: $('td-core'), coreCards: $('td-core-cards'), coreTitle: $('td-core-title'), coreSlots: $('td-core-slots'),
+    cmdBtns: {}
+  };
+  for (const el of document.querySelectorAll('.td-cmd')) TDu.cmdBtns[el.dataset.cmd] = el;
+
+  // ---------- 基础工具 ----------
+  const TD_ARCS = new Map();
+  function tdArc(laneId) {
+    let a = TD_ARCS.get(laneId);
+    if (!a) { a = TD.buildArc(TD.LANE_BY_ID.get(laneId).pts); TD_ARCS.set(laneId, a); }
+    return a;
+  }
+  function tdMyIndex() {
+    const room = (typeof NET !== 'undefined' && NET.connected) ? NET.room : null;
+    if (room && room.players) {
+      const i = room.players.findIndex(pl => pl.id === NET.myId);
+      if (i >= 0) return i;
+    }
+    return 0;
+  }
+  function tdIsTd() { return !!(game && game.gameMode === 'td'); }
+  /** 当前阵位的有效覆盖半径（码） */
+  function tdReach() { return TDR.reachBase * TDR.reachMul + TDR.crossReach; }
+
+  /** 按方向把节点的邻接拆成 上/下/左/右（同向取最近的一个） */
+  function tdNeighbors(node) {
+    const groups = { up: [], down: [], left: [], right: [] };
+    for (const id of node.links) {
+      const n = TD.NODE_BY_ID.get(id);
+      if (!n) continue;
+      const dx = n.x - node.x, dy = n.y - node.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const nx = dx / d, ny = dy / d;
+      let key;
+      if (Math.abs(nx) >= Math.abs(ny)) key = nx > 0 ? 'right' : 'left';
+      else key = ny > 0 ? 'down' : 'up';
+      groups[key].push({ n, d });
+    }
+    const out = {};
+    for (const k of ['up', 'down', 'left', 'right']) {
+      groups[k].sort((a, b) => a.d - b.d);
+      out[k] = groups[k].length ? groups[k][0].n : null;
+    }
+    return out;
+  }
+
+  // ---------- 修正项：重置 / 施放卡牌 ----------
+  /** 把所有「卡牌带来的修正」归零。recomputePlayer 时先调它再重放卡牌，保证幂等。 */
+  function tdResetModifiers() {
+    TDR.reachBase = TD.MAP.reach; TDR.reachMul = 1; TDR.crossReach = 0;
+    TDR.cdScale = 1; TDR.threshold = 1; TDR.doubleCast = 0;
+    TDR.xpBonus = 0; TDR.goldBonus = 0;
+    TDR.burnOnHit = 0; TDR.chainKill = 0; TDR.burstStack = 0; TDR.executeTh = 0;
+    TDR.armorPierce = 0; TDR.extraCast = 8;
+    TDR.guardArmor = 0; TDR.guardMax = 6; TDR.aidBonus = .05; TDR.guardPact = 0;
+    TDR.dualCmd = false; TDR.focusDeep = false;
+    TDR.beacon = false; TDR.rally = false; TDR.soulLink = false;
+    TDR.tpCdMax = TD.MAP.tpCd; TDR.rootLock = 0;
+    TDR.rescueCd = 12;                       // 「战场援助」卡会 *= .6 → 必须归零，否则重放时叠加
+  }
+
+  /** 施放一张升级卡（TD 语义）。通用卡在塔防下被改写，TD 专属卡改 TDR。 */
+  function tdApplyCard(u, p) {
+    if (!u || !u.apply) return;
+    // ★ td.js 的卡牌通过 ctx.td 调 TDR 上的能力（spawnGuard / setCommand 等），
+    //   这里注入委托，保证卡牌定义与运行时状态解耦。
+    u.apply(p, { td: TDR, game });
+  }
+
+  /** TD 模式的升级池 = 通用卡（塔防语义改写）+ TD 专属卡 + 技能专属卡 */
+  function tdUpgradePool() {
+    const p = game.player;
+    const list = [];
+    for (const u of upgradePool) {
+      const ov = TD.TD_GENERIC_OVERRIDE[u.id];
+      list.push(ov ? { ...u, name: ov.name || u.name, desc: ov.desc || u.desc, apply: ov.apply || u.apply } : u);
+    }
+    list.push(...TD.TD_UPGRADE_POOL);
+    // 技能专属卡沿用现有逻辑（对所有模式通用）
+    for (const s of SKILLS[p.type]) {
+      if (s.id !== p.skillBasic && !ACTIVE_SLOTS.some(sl => p[sl.skill] === s.id)) continue;
+      for (const m of (s.mods || [])) {
+        const lvl = p.mods[m.id] || 0;
+        if (lvl >= (m.max || 1)) continue;
+        list.push({ id: `mod_${m.id}`, icon: s.icon, svg: s.id, name: `${s.name} · ${m.name}`, type: '技能强化', cls: p.type,
+          desc: m.desc, skillLevel: lvl + 1, rar: m.rar ?? ((m.req || m.reqSkill) ? 3 : 2),
+          available: pl => pl.type === p.type && (m.req || []).every(r => pl.mods[r]) && (!m.reqSkill || pl.skillBasic === m.reqSkill || ACTIVE_SLOTS.some(sl => pl[sl.skill] === m.reqSkill)),
+          apply: pl => { if (pl.type === p.type) pl.mods[m.id] = (pl.mods[m.id] || 0) + 1; } });
+      }
+    }
+    return list;
+  }
+
+  // ---------- 局内核心（TD 版的「装备卡」）----------
+  // ★ 设计取舍（用户口径的矛盾点）：
+  //   「装备卡在杀怪过程中弹出、不暂停」＋「塔防不产装备」看似互斥。
+  //   本实现产出的是**局内核心**：和装备卡一样在击杀时三选一弹出、一样不暂停，
+  //   但效果只在本局生效，**绝不写 save.gearLearned / save.bag**。
+  //   塔防的持久产出改由成就系统给金币（见 ACHIEVEMENTS 里 cat:'td' 的那组）。
+
+  /** 已获得的核心：[{ id, lvl }]，只存在于本局 */
+  function tdCores() { return (game && game.tdCores) || []; }
+
+  function tdCoreOwned(id) {
+    const c = tdCores().find(x => x.id === id);
+    return c ? c.lvl : 0;
+  }
+
+  /**
+   * 打开核心三选一。
+   * ★ 不暂停：mode 保持 'playing'（与强化卡 / 装备卡的 live 逻辑一致）。
+   */
+  function openTdCorePick() {
+    const p = game.player;
+    if (!p || p.downed) return;
+    if (!TDu.core || !TDu.coreCards) return;
+    if (game.levelupOpen || game.gearPickOpen) return;   // 不与强化卡 / 装备卡重入
+    // 候选：未满级的核心（已满级的排除）
+    const pool = TD.TD_CORE_POOL.filter(c => tdCoreOwned(c.id) < (c.max || 1));
+    if (!pool.length) { p.gold += 15; announce('核心已全部满级 · 折算 +15 金币', '#ffe094', 1.4); return; }
+    // 按稀有度加权抽取（rar 越高越少见）
+    const picks = [];
+    const bag = [];
+    for (const c of pool) { const w = c.rar === 0 ? 10 : c.rar === 1 ? 6 : c.rar === 2 ? 3 : 1; for (let i = 0; i < w; i++) bag.push(c); }
+    while (picks.length < 3 && bag.length) {
+      const c = bag.splice(Math.floor(Math.random() * bag.length), 1)[0];
+      if (!picks.some(x => x.id === c.id)) picks.push(c);
+    }
+    if (!picks.length) { p.gold += 15; announce('核心已全部满级 · 折算 +15 金币', '#ffe094', 1.4); return; }
+    game.tdCoreOpen = true;
+    TDu.core.classList.remove('hidden');
+    TDu.core.classList.add('active');
+    TDu.coreTitle.textContent = '拾取核心';
+    TDu.coreCards.innerHTML = '';
+    picks.forEach(c => {
+      const owned = tdCoreOwned(c.id);
+      const b = document.createElement('button');
+      b.className = 'upgrade rar-' + (c.rar || 0);
+      b.innerHTML = `<span class="up-icon">${c.icon || '◆'}</span><strong>${c.name}</strong>` +
+        `<span class="up-type">核心 · ${owned}/${c.max || 1} 级</span><p>${c.desc}</p>` +
+        `<small>${owned > 0 ? '叠加后等级 ' + (owned + 1) : '新核心'}</small>`;
+      b.addEventListener('click', () => tdPickCore(c));
+      TDu.coreCards.appendChild(b);
+    });
+  }
+
+  /** 拾取一个核心：写进本局核心表 → 重算属性（recomputePlayer 会把核心一起重放）*/
+  function tdPickCore(c) {
+    const p = game.player;
+    const owned = tdCoreOwned(c.id);
+    if (owned >= (c.max || 1)) { toast('该核心已达等级上限'); return; }
+    if (!game.tdCores) game.tdCores = [];
+    const rec = game.tdCores.find(x => x.id === c.id);
+    if (rec) rec.lvl++; else game.tdCores.push({ id: c.id, lvl: 1 });
+    game.tdCoreOpen = false;
+    TDu.core.classList.add('hidden');
+    TDu.core.classList.remove('active');
+    recomputePlayer();   // 重建数值并把「强化卡 + 核心」一起重放 → 幂等
+    burst(p.x, p.y, '#9fd3ff', 22);
+    FX.ring(p.x, p.y, '#9fd3ff', 22, { speed: 240 });
+    game.texts.push({ x: p.x, y: p.y - 40, text: `${c.name} Lv${tdCoreOwned(c.id)}`, color: '#9fd3ff', life: 1.4, size: 15 });
+    announce(`核心 · ${c.name} Lv${tdCoreOwned(c.id)}`, '#9fd3ff', 1.6);
+    tdRenderCoreSlots();
+    updateHUD();
+  }
+
+  function tdSkipCore() {
+    const p = game.player;
+    game.tdCoreOpen = false;
+    TDu.core.classList.add('hidden');
+    TDu.core.classList.remove('active');
+    p.gold += 15;
+    announce('放弃核心 · 折算 +15 金币', '#ffe094', 1.4);
+  }
+
+  /** HUD：底部核心芯片条 */
+  function tdRenderCoreSlots() {
+    if (!TDu.coreSlots) return;
+    const list = tdCores();
+    TDu.coreSlots.classList.toggle('hidden', !TDR.on || !list.length);
+    if (!list.length) { TDu.coreSlots.innerHTML = ''; return; }
+    TDu.coreSlots.innerHTML = list.map(rec => {
+      const def = TD.TD_CORE_POOL.find(x => x.id === rec.id);
+      if (!def) return '';
+      return `<span class="td-core-chip rar-${def.rar || 0}" title="${def.desc}">${def.icon || '◆'}<b>${def.name}</b><i>${rec.lvl}</i></span>`;
+    }).join('');
+  }
+
+  // ---------- 初始化 / 收尾 ----------
+  function tdInit() {
+    const players = Math.max(1, game.playerCount || 1);
+    TDR.on = true;
+    TDR.wave = 0; TDR.waveT = 0; TDR.spawnAcc = 0;
+    TDR.queue.length = 0;
+    TDR.leaks = 0;
+    TDR.leakLimit = TD.BALANCE.leakLimit(players);
+    const own = TD.BALANCE.laneOwners[players] || TD.BALANCE.laneOwners[1];
+    TDR.lanes = Object.keys(own);
+    TDR.laneOwner = own;
+    tdResetModifiers();
+    TDR.guards.length = 0;
+    TDR.cmd = 'focus';
+    TDR.tpCd = 0;
+    TDR.viewPad = null;
+    TDR.rescueCd = 12;
+    TDR.rallyT = 0;
+    TDR.pendingDouble = null;
+    TDR.coverN = 0;
+    // 局内核心（本局专属，结算后清空）
+    if (!game.tdCores) game.tdCores = [];
+    game.tdCores.length = 0;
+    game.tdCoreDrops = 0;
+    game.tdCoreOpen = false;
+    if (TDu.core) { TDu.core.classList.add('hidden'); TDu.core.classList.remove('active'); }
+    tdRenderCoreSlots();
+    // ★ 把运行时能力挂到 TDR 上，让 td.js 的卡牌（ctx.td.xxx）能调到 game.js 的函数
+    //   ★ replaying 标志：recomputePlayer 会重放全部卡牌，而「召唤守卫」「切换指令」
+    //     属于一次性效果 —— 重放时必须跳过，否则：
+    //       ① 每次重算都多召几个守卫（守卫数量爆炸）；
+    //       ② 玩家手动切过的战术指令被卡牌重置回默认。
+    TDR.spawnGuard = (p, kind) => { if (TDR.replaying) return; tdSpawnGuard(p, kind); };
+    TDR.setCommand = (c) => { if (TDR.replaying) return; tdSetCommand(c); };
+
+    const p = game.player;
+    p.invuln = 1e9;                 // ★ 英雄无敌
+    p.nextXp = TD.WAVES.xpNeed(1);
+    p.hp = p.maxHp;
+    p.gear = [];                    // ★ 塔防不产装备
+    // ★ 塔防默认主动技：普通模式的主动技来自装备（默认存档 active 全是 null），
+    //   而塔防不产装备 → 必须给一个职业默认主动技，否则「自动施法」永远无技可放。
+    if (TD.TD_DEFAULT_ACTIVE) p.skillActive = TD.TD_DEFAULT_ACTIVE[p.type] || p.skillActive;
+    const myIdx = tdMyIndex();
+    const quad = TDR.lanes.find(l => TDR.laneOwner[l] === myIdx) || TDR.lanes[0];
+    const start = TD.MAP.nodes.find(n => n.quad === quad && n.seq === 1) || TD.MAP.nodes[0];
+    TDR.node = start;
+    p.x = start.x; p.y = start.y;
+    p.dirX = 1; p.dirY = 0;
+
+    document.body.classList.add('td-mode');
+    for (const k of ['top', 'cmds', 'padState', 'minimap']) if (TDu[k]) TDu[k].classList.remove('hidden');
+    tdSyncCommandUi();
+    announce('守卫艾泽拉斯之心 · 守住 30 波', '#9fd3ff', 3);
+    tdNextWave();          // ★ 开局立刻进入第 1 波（不要先空等一个波次时长）
+  }
+
+  /** 退出塔防模式（回首页 / 结算时清理 body class 与 HUD） */
+  function tdTeardown() {
+    TDR.on = false;
+    document.body.classList.remove('td-mode');
+    for (const k of ['top', 'cmds', 'padState', 'minimap']) if (TDu[k]) TDu[k].classList.add('hidden');
+    if (TDu.core) { TDu.core.classList.add('hidden'); TDu.core.classList.remove('active'); }
+    if (TDu.coreSlots) { TDu.coreSlots.classList.add('hidden'); TDu.coreSlots.innerHTML = ''; }
+    if (game) game.tdCoreOpen = false;
+  }
+
+  // ---------- 波次调度 ----------
+  function tdKindFor(row) {
+    if (row.tags.includes('飞行')) return 'flyer';
+    if (row.tags.includes('施法')) return 'caster';
+    if (row.tags.includes('治疗')) return 'healer';
+    if (row.tags.includes('分裂')) return 'splitter';
+    if (row.tags.includes('装甲')) return 'tank';
+    if (row.tags.includes('快速')) return 'fast';
+    return 'normal';
+  }
+
+  /** 当前阵位能覆盖到哪几条路（用于「出怪优先送到玩家眼前」） */
+  function tdCoveredLanes() {
+    const pad = TDR.node;
+    if (!pad) return [];
+    const reach = tdReach();
+    const out = [];
+    for (const l of TDR.lanes) {
+      const arc = tdArc(l);
+      let hit = false;
+      for (let t = 0; t <= 1 && !hit; t += .01) {
+        const pt = TD.samplePath(arc, t);
+        if (Math.hypot(pt.x - pad.x, pt.y - pad.y) <= reach) hit = true;
+      }
+      if (hit) out.push(l);
+    }
+    return out;
+  }
+
+  function tdNextWave() {
+    TDR.wave++;
+    if (TDR.wave > TD.WAVES.total) { endGame(true, '艾泽拉斯之心安然无恙，三十波攻势尽数击退。'); return; }
+    const row = TD.WAVES.rows[TDR.wave - 1];
+    // 本波出怪的路：从激活路里随机取 row.lanes 条
+    const lanes = TDR.lanes.slice();
+    for (let i = lanes.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = lanes[i]; lanes[i] = lanes[j]; lanes[j] = t; }
+    // ★ 优先把怪送到玩家当前站位覆盖得到的路上：玩家一次只能守一段，
+    //   若出怪路与自己无关，玩家只能眼睁睁看怪走进心脏 —— 挫败感远大于难度。
+    //   排序放在洗牌之后 → 同组内仍保持随机。
+    const covered = tdCoveredLanes();
+    if (covered.length) {
+      lanes.sort((a, b) => (covered.includes(b) ? 1 : 0) - (covered.includes(a) ? 1 : 0));
+    }
+    const use = lanes.slice(0, Math.min(row.lanes, lanes.length));
+    for (const lane of use) {
+      for (let i = 0; i < row.count; i++) {
+        TDR.queue.push({ lane, kind: tdKindFor(row), elite: row.tags.includes('精英') && i === 0 });
+      }
+    }
+    // 交错入场：打乱队列，避免一条路的怪连续出现
+    for (let i = TDR.queue.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = TDR.queue[i]; TDR.queue[i] = TDR.queue[j]; TDR.queue[j] = t; }
+    // 出怪节奏：让本波怪恰好在波次时长内出完，但夹在 [0.15s, 3s] 之间。
+    //   ★ 不夹上限的话第 1 波（3 只）会摊到 28 秒里 → 9 秒才出一只，开局空转；
+    //   不夹下限的话第 30 波（188 只）会挤在 0.15 秒内 → 瞬时爆怪。
+    TDR.spawnInterval = Math.max(.15, Math.min(3, TDR.waveLen / Math.max(1, TDR.queue.length)));
+    TDR.spawnAcc = 0;
+    const tag = row.tags.filter(t => t.startsWith('BOSS') || t === '精英波').join(' ');
+    announce(`第 ${TDR.wave} 波 · ${row.count} 只 × ${use.length} 路${tag ? ' · ' + tag : ''}`, tag ? '#f1a277' : '#ffd98a', 2);
+  }
+
+  function tdSpawnTick(dt) {
+    if (!TDR.queue.length) return;
+    // ★ 移动端性能降级：同屏怪物上限 160（超出排队，优先杀靠前的）。
+    //   只砍表现层密度，绝不砍血量/速度 —— 那会破坏配平。
+    const cap = tdIsMobile() ? 160 : 270;
+    TDR.spawnAcc += dt;
+    while (TDR.spawnAcc >= TDR.spawnInterval && TDR.queue.length) {
+      if (game.enemies.length >= cap) { TDR.spawnAcc = TDR.spawnInterval; return; }  // 保持满速等待
+      TDR.spawnAcc -= TDR.spawnInterval;
+      const s = TDR.queue.shift();
+      tdSpawnEnemy(s.lane, s.kind, s.elite);
+    }
+  }
+
+  function tdSpawnEnemy(laneId, kind, elite) {
+    const row = TD.WAVES.rows[Math.max(0, TDR.wave - 1)];
+    const mul = TD.BALANCE.laneHpMult(game.playerCount || 1, laneId) || 1;
+    const hp = row.hp * mul * (elite ? 3 : 1);
+    const arc = tdArc(laneId);
+    const t0 = TD.samplePath(arc, 0);
+    const def = TD.MOB_TYPES[kind] || TD.MOB_TYPES.normal;
+    const e = {
+      type: def.sprite, name: (elite ? '精英·' : '') + def.name,
+      x: t0.x, y: t0.y, r: def.r, hp, maxHp: hp, speed: row.speed * def.speedMul,
+      damage: 0,                       // ★ 怪物不攻击英雄
+      xp: row.xp * (elite ? 2 : 1),
+      color: def.color, hitCd: 0, shootCd: 99, specialCd: 99, flash: 0, dead: false, boss: false,
+      variant: 0, spriteKey: def.sprite, tint: elite ? 300 : null, elite,
+      phase: rand(0, TAU), slow: 0, slowT: 0, burnT: 0, burnDps: 0, poisT: 0, poisDps: 0,
+      stunT: 0, bleedT: 0, bleedDps: 0, dotAcc: 0, dotTick: 0, killedBy: null, spawnT: .3, atkT: 0,
+      nid: (game._nid = (game._nid || 0) + 1),
+      // ★ TD 专属字段
+      tdLane: laneId, tdDist: 0, tdT: 0, tdFly: !!def.flying, tdKind: kind
+    };
+    game.enemies.push(e);
+    return e;
+  }
+
+  /** 怪物沿路径行进（替代默认的「追玩家」逻辑） */
+  function tdMoveEnemy(e, dt) {
+    const arc = tdArc(e.tdLane);
+    const sp = e.speed * (e.slowT > 0 ? 1 - e.slow : 1) * (e.stunT > 0 ? 0 : 1);
+    e.tdDist += sp * dt;
+    if (e.tdDist >= arc.total) {
+      e.dead = true;
+      if (!e.probe) tdLeak(e);   // 验收探针不计入漏怪
+      return;
+    }
+    const t = e.tdDist / arc.total;
+    const pt = TD.samplePath(arc, t);
+    e.x = pt.x; e.y = pt.y; e.tdT = t;
+    e.dirX = pt.dirX; e.dirY = pt.dirY;
+  }
+
+  function tdLeak(e) {
+    TDR.leaks++;
+    game.shake = Math.max(game.shake, 8);
+    // ★ 漏怪是最重要的失败反馈：长震 + 红闪（移动端靠触觉，桌面端靠红闪）
+    buzz([60, 80, 60]);
+    game.flash = Math.max(game.flash || 0, .22);
+    const H = TD.MAP.heart;
+    game.texts.push({ x: H.x, y: H.y - 70, text: '漏怪 +1', color: '#e05a4a', life: 1, size: 15 });
+    FX.ring(H.x, H.y, '#e05a4a', 32, { speed: 260 });
+    if (TDR.leaks >= TDR.leakLimit) endGame(false, `艾泽拉斯之心被攻破 —— 累计漏怪 ${TDR.leaks} 只。`);
+  }
+
+  // ---------- 自动施法决策器（★ 塔防的核心：AI 替你按键）----------
+  function tdCollectCovered() {
+    const pad = TDR.node;
+    const reach = tdReach();
+    const list = [];
+    const laneT = new Map();
+    if (!pad) return { list, laneT };
+    for (const e of game.enemies) {
+      if (e.dead || !e.tdLane) continue;
+      if (Math.hypot(e.x - pad.x, e.y - pad.y) <= reach + e.r) { list.push(e); laneT.set(e, e.tdT || 0); }
+    }
+    return { list, laneT };
+  }
+
+  function tdAutoCast(dt) {
+    const p = game.player;
+    const { list: inRange, laneT } = tdCollectCovered();
+    TDR.coverN = inRange.length;
+    // 普攻（沿用现有 playerAttack；射程由 attackRange 的 TD 分支约束）
+    if (p.attackTimer <= 0 && !p.downed) playerAttack();
+    // 双重施法（延迟触发）
+    if (TDR.pendingDouble) {
+      TDR.pendingDouble.t -= dt;
+      if (TDR.pendingDouble.t <= 0) {
+        const dbl = TDR.pendingDouble; TDR.pendingDouble = null;
+        const keep = p[dbl.slot.cd] || 0;
+        p[dbl.slot.cd] = 0;
+        castActive(dbl.slot);
+        p[dbl.slot.cd] = keep;
+      }
+    }
+    if (!inRange.length) return;
+    // 候选技能：塔防下有效 + 冷却完毕，按优先级从高到低
+    const cands = [];
+    for (const sl of ACTIVE_SLOTS) {
+      const sid = p[sl.skill];
+      if (!sid || !TD.autoCastEnabled(sid)) continue;
+      if ((p[sl.cd] || 0) > 0) continue;
+      const rule = TD.AUTO_CAST[sid];
+      cands.push({ sl, sid, rule, prio: rule.prio || 0 });
+    }
+    cands.sort((a, b) => b.prio - a.prio);
+    for (const c of cands) {
+      const need = c.rule.need || 'any';
+      if (need === 'any' && inRange.length < 1) continue;
+      if (need === 'dense' && inRange.length < (c.rule.min || 3) * TDR.threshold) continue;
+      const tgt = TD.pickTarget(inRange, TDR.cmd, laneT);
+      if (!tgt) continue;
+      const dx = tgt.x - p.x, dy = tgt.y - p.y, d = Math.hypot(dx, dy) || 1;
+      p.dirX = dx / d; p.dirY = dy / d;
+      TDR.lastPick = tgt;
+      castActive(c.sl.n);
+      // cdScale 生效（卡牌缩短 / 延长技能冷却）
+      p[c.sl.cd] = (p[c.sl.cd] || 0) * TDR.cdScale;
+      p[c.sl.max] = (p[c.sl.max] || 0) * TDR.cdScale;
+      // 生命共鸣：每 N 次施法多放一次
+      TDR.castCounter++;
+      if (TDR.extraCast > 0 && TDR.castCounter >= TDR.extraCast) {
+        TDR.castCounter = 0;
+        const keep = p[c.sl.cd] || 0;
+        p[c.sl.cd] = 0;
+        castActive(c.sl.n);
+        p[c.sl.cd] = keep;
+      }
+      // 双重施法：AOE 技能概率再放一次
+      if (TDR.doubleCast > 0 && Math.random() < TDR.doubleCast) {
+        TDR.pendingDouble = { slot: c.sl.n, t: .6 };
+      }
+      break;   // 一帧最多放一个技能
+    }
+  }
+
+  // ---------- 守卫（绑定阵位，玩家传送时留在原阵）----------
+  function tdSpawnGuard(p, kind) {
+    const pad = TDR.node;
+    if (!pad) return;
+    if (TDR.guards.length >= (TDR.guardMax || 6)) { toast('守卫数量已达上限'); return; }
+    const def = TD.GUARD_KINDS[kind] || TD.GUARD_KINDS.turret;
+    // twin：落在相邻阵位
+    let host = pad;
+    if (kind === 'twin') {
+      const nb = tdNeighbors(pad);
+      const cand = nb.right || nb.left || nb.up || nb.down;
+      if (cand) host = cand;
+    }
+    TDR.guards.push({ kind, x: host.x, y: host.y, padId: host.id, r: def.r,
+      range: def.range, dps: def.dps, color: def.color, life: 0, atkCd: 0, hp: 1, dead: false });
+    FX.ring(host.x, host.y, def.color, 20, { speed: 180 });
+    game.texts.push({ x: host.x, y: host.y - 26, text: def.name + ' 就位', color: def.color, life: 1.1, size: 12 });
+  }
+
+  // 守卫攻击间隔（秒）。守卫是「塔」，按固定频率开火，而不是每帧结算。
+  const TD_GUARD_ATK_CD = .8;
+
+  function tdUpdateGuards(dt) {
+    const p = game.player;
+    for (const g of TDR.guards) {
+      if (g.dead) continue;
+      g.life += dt;
+      g.atkCd = Math.max(0, (g.atkCd || 0) - dt);
+      // 守卫自动攻击覆盖范围内的怪
+      // ★ 必须按固定频率开火：早先版本在每帧都结算伤害 → 实际 DPS 被放大 60 倍。
+      if (g.dps > 0 && g.atkCd <= 0) {
+        let best = null, bd = g.range;
+        for (const e of game.enemies) {
+          if (e.dead || !e.tdLane) continue;
+          const d = Math.hypot(e.x - g.x, e.y - g.y);
+          if (d < bd) { bd = d; best = e; }
+        }
+        if (best) {
+          g.atkCd = TD_GUARD_ATK_CD;
+          const dmg = p.damage * g.dps;
+          damageEnemy(best, dmg, Math.atan2(best.y - g.y, best.x - g.x), 'td_guard');
+          // 荆棘守卫：反弹
+          if (g.kind === 'thorn' && Math.random() < .2) {
+            for (const e of game.enemies) {
+              if (!e.dead && e !== best && Math.hypot(e.x - g.x, e.y - g.y) < g.range) {
+                damageEnemy(e, p.damage * .3, 0, 'td_guard'); break;
+              }
+            }
+          }
+        }
+      }
+      // 地雷：定期补充（由卡牌在覆盖段布置）
+      if (g.kind === 'mine' && g.life > 0) {
+        for (const e of game.enemies) {
+          if (!e.dead && e.tdLane && Math.hypot(e.x - g.x, e.y - g.y) < g.range) {
+            damageEnemy(e, p.damage * 2.4, 0, 'td_guard');
+            game.effects.push({ type: 'warning', x: g.x, y: g.y, r: 8, maxR: g.range, life: .3, maxLife: .3, color: '#ffb257' });
+            g.dead = true;
+            break;
+          }
+        }
+      }
+    }
+    TDR.guards = TDR.guards.filter(g => !g.dead);
+  }
+
+  // ---------- 传送 / 指令 ----------
+  function tdTeleport(dir) {
+    if (!TDR.node) return;
+    if (TDR.tpCd > 0) { toast(`传送冷却 ${TDR.tpCd.toFixed(1)}s`); buzz([30, 40, 30]); return; }
+    const nb = tdNeighbors(TDR.node);
+    const target = nb[dir];
+    if (!target) { toast('该方向没有相邻传送阵'); return; }
+    tdTeleportTo(target, 1);
+  }
+
+  /**
+   * 传送到指定阵位。
+   * @param target 目标阵位节点
+   * @param hops   跨越的阵位数（移动端点远处阵位时 CD 更长：5s + 2s × 跳数）
+   */
+  function tdTeleportTo(target, hops = 1) {
+    if (!target) return false;
+    if (TDR.tpCd > 0) { toast(`传送冷却 ${TDR.tpCd.toFixed(1)}s`); buzz([30, 40, 30]); return false; }
+    if (target.id === TDR.node?.id) { toast('已经在该阵位'); return false; }
+    TDR.node = target;
+    const p = game.player;
+    p.x = target.x; p.y = target.y;
+    TDR.tpCd = TDR.tpCdMax + Math.max(0, (hops - 1)) * 2;   // 远距离传送 CD 加长
+    if (TDR.rootLock > 0) TDR.rootLock = Math.max(0, TDR.rootLock - 1);
+    FX.ring(target.x, target.y, '#ffd98a', 22, { speed: 220 });
+    burst(target.x, target.y, '#ffe098', 12);
+    buzz(15);
+    announce(`传送 · ${target.id} 号阵`, '#ffd98a', 1.2);
+    return true;
+  }
+
+  // ---------- 触屏 / 鼠标：点阵位传送 + 拖动平移视角 ----------
+  const TD_TAP_RADIUS = 70;      // 阵位点击容错（码）
+  const TD_DRAG_THRESHOLD = 12;  // 超过该位移判定为拖动（px）
+
+  /** 屏幕坐标 → 世界坐标 */
+  function tdWorldPos(clientX, clientY) {
+    const cam = camera();
+    const r = canvas.getBoundingClientRect();
+    return { x: cam.x + (clientX - r.left), y: cam.y + (clientY - r.top) };
+  }
+
+  /** 命中的传送阵（取最近的，容错 70 码） */
+  function tdHitPad(wx, wy) {
+    let best = null, bd = TD_TAP_RADIUS;
+    for (const n of TD.MAP.nodes) {
+      const d = Math.hypot(n.x - wx, n.y - wy);
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+
+  /** 两个阵位之间的跳数（沿 links 邻接表做 BFS，用于远距离传送的 CD 惩罚） */
+  function tdHops(aId, bId) {
+    if (!aId || !bId || aId === bId) return 1;
+    const adj = new Map(TD.MAP.nodes.map(n => [n.id, n.links || []]));
+    const seen = new Set([aId]); const q = [[aId, 0]];
+    while (q.length) {
+      const [cur, d] = q.shift();
+      if (cur === bId) return d;
+      for (const nb of (adj.get(cur) || [])) if (!seen.has(nb)) { seen.add(nb); q.push([nb, d + 1]); }
+    }
+    return 1;
+  }
+
+  function tdCanvasPointerDown(e) {
+    if (game?.gameMode !== 'td') return;
+    TDR.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, ox: TDR.camOff.x, oy: TDR.camOff.y };
+  }
+
+  function tdCanvasPointerMove(e) {
+    const d = TDR.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    d.moved = Math.max(d.moved, Math.hypot(dx, dy));
+    if (d.moved > TD_DRAG_THRESHOLD) {
+      // 拖动 = 平移视角（脱离跟随）
+      TDR.camOff.x = d.ox + dx; TDR.camOff.y = d.oy + dy;
+      TDR.camFree = 1.5;   // 松手 1.5 秒后回到跟随
+    }
+  }
+
+  function tdCanvasPointerUp(e) {
+    const d = TDR.drag;
+    if (!d || d.id !== e.pointerId) return;
+    TDR.drag = null;
+    if (d.moved > TD_DRAG_THRESHOLD) return;   // 拖过 → 不触发传送
+    const w = tdWorldPos(e.clientX, e.clientY);
+    const pad = tdHitPad(w.x, w.y);
+    if (!pad) return;                            // 点空地 = 无操作
+    const hops = tdHops(TDR.node?.id, pad.id);
+    tdTeleportTo(pad, hops);
+  }
+
+  /** 震动反馈（移动端）；桌面端无 navigator.vibrate 时静默 */
+  function buzz(pattern) {
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { }
+  }
+
+  /** 联机：切换观看的队友视角（null = 回到自己） */
+  function tdSetView(allyId) {
+    TDR.viewPad = allyId || null;
+    // 同步左侧队友列表的高亮（谁正在被观看）
+    const pp = ui['party-panel'];
+    if (pp) pp.querySelectorAll('[data-pf]').forEach(fr => {
+      fr.classList.toggle('pf-viewing', fr.dataset.pf === (TDR.viewPad || 'self'));
+    });
+    if (TDR.viewPad) toast('正在查看队友视角 · 空格或方向键回到自己');
+    else toast('已回到自己视角');
+  }
+
+  function tdSetCommand(cmd) {
+    if (!TD.COMMANDS[cmd]) return;
+    TDR.cmd = cmd;
+    tdSyncCommandUi();
+    toast('战术指令 · ' + TD.COMMANDS[cmd].name);
+  }
+
+  function tdSyncCommandUi() {
+    for (const k in TDu.cmdBtns) TDu.cmdBtns[k].classList.toggle('active', k === TDR.cmd);
+  }
+
+  // ---------- 每帧更新 ----------
+  function tdUpdate(dt) {
+    const p = game.player;
+    // ★ 注意：计时器递减、粒子/特效清理、投射物更新、装备卡检查、updateHUD
+    //   全部由主 update 的通用段负责，这里只做 TD 专属的事，避免重复执行。
+    p.invuln = Math.max(p.invuln, 1e8);           // ★ 始终无敌
+    p.moveX = 0; p.moveY = 0;                      // ★ 不能自由移动
+    // 拖动脱离跟随后自动回到跟随
+    if (TDR.camFree > 0) {
+      TDR.camFree -= dt;
+      if (TDR.camFree <= 0) { TDR.camOff.x = 0; TDR.camOff.y = 0; }
+    } else if (!TDR.drag) {
+      // 平滑回位
+      TDR.camOff.x *= Math.max(0, 1 - dt * 8);
+      TDR.camOff.y *= Math.max(0, 1 - dt * 8);
+      if (Math.abs(TDR.camOff.x) < 1) TDR.camOff.x = 0;
+      if (Math.abs(TDR.camOff.y) < 1) TDR.camOff.y = 0;
+    }
+    // 传送冷却 / 扎根锁定
+    TDR.tpCd = Math.max(0, TDR.tpCd - dt);
+    if (TDR.rallyT > 0) { TDR.rallyT -= dt; if (TDR.rallyT <= 0) TDR.rally = false; }
+    // 波次推进
+    TDR.waveT += dt;
+    if (TDR.waveT >= TDR.waveLen) { TDR.waveT -= TDR.waveLen; tdNextWave(); }
+    tdSpawnTick(dt);
+    // 自动施法 + 守卫
+    tdAutoCast(dt);
+    tdUpdateGuards(dt);
+    // 怪物沿路径移动（在主 update 的敌人循环里被拦截调用，这里不需要重复）
+    // 心柱血条 / 漏怪提示（TD 专属 HUD）
+    const remain = Math.max(0, TDR.leakLimit - TDR.leaks);
+    if (TDu.heartFill) TDu.heartFill.style.width = (100 * remain / TDR.leakLimit) + '%';
+    if (TDu.heartText) TDu.heartText.textContent = `${remain} / ${TDR.leakLimit}`;
+    if (TDu.leakText) TDu.leakText.textContent = `${TDR.leaks} / ${TDR.leakLimit}`;
+    if (TDu.leak) TDu.leak.classList.toggle('danger', TDR.leaks >= TDR.leakLimit * .7);
+  }
+
+  // ---------- 渲染 ----------
+  function tdDrawGround(cam) {
+    const W = TD.MAP.W, Hh = TD.MAP.H;
+    const scene = typeof ASSETS !== 'undefined' ? ASSETS.getScene('td') : null;
+    ctx.save();
+    // 草地底
+    if (scene) {
+      const tile = 768;
+      const gx0 = Math.floor((cam.x - 60) / tile), gy0 = Math.floor((cam.y - 60) / tile);
+      const cols = Math.ceil(width / tile) + 3, rows = Math.ceil(height / tile) + 3;
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) ctx.drawImage(scene, (gx0 + i) * tile, (gy0 + j) * tile, tile, tile);
+    } else {
+      ctx.fillStyle = '#1b2a1e'; ctx.fillRect(cam.x - 50, cam.y - 50, width + 100, height + 100);
+    }
+    // 道路（等宽折线描边）
+    const half = TD.MAP.roadHalf;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (const lane of TD.MAP.lanes) {
+      const active = TDR.lanes.includes(lane.id);
+      const pts = TD.normPts(lane.pts);
+      // 暗边
+      ctx.strokeStyle = 'rgba(92,72,44,.85)'; ctx.lineWidth = half * 2 + 14;
+      ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke();
+      // 路面
+      ctx.strokeStyle = active ? '#a98a5c' : '#6d5c42'; ctx.lineWidth = half * 2;
+      ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke();
+    }
+    // 刷怪区标记（四角）
+    ctx.restore();
+  }
+
+  function tdDrawOverlay() {
+    const pad = TDR.node;
+    const H = TD.MAP.heart;
+    ctx.save();
+    // 心脏
+    const pulse = .85 + Math.sin(performance.now() / 420) * .12;
+    ctx.fillStyle = FX.radial(ctx, 'td_heart', 150, [[0, 'rgba(120,205,255,.55)'], [.5, 'rgba(60,140,230,.25)'], [1, 'rgba(0,0,0,0)']]);
+    ctx.beginPath(); ctx.arc(H.x, H.y, 150 * pulse, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#5fc8ff'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(H.x, H.y, H.r * pulse, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = 'rgba(95,200,255,.45)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(H.x, H.y, H.r * 1.5 * pulse, 0, TAU); ctx.stroke();
+    // 传送阵
+    for (const n of TD.MAP.nodes) {
+      const isMe = pad && n.id === pad.id;
+      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 46);
+      g.addColorStop(0, isMe ? 'rgba(255,225,150,.42)' : 'rgba(255,200,110,.18)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, 46, 0, TAU); ctx.fill();
+      ctx.strokeStyle = isMe ? '#ffe1a1' : '#c9a35e'; ctx.lineWidth = isMe ? 4 : 2;
+      ctx.beginPath(); ctx.arc(n.x, n.y, 22, 0, TAU); ctx.stroke();
+      if (isMe) {
+        ctx.strokeStyle = 'rgba(255,225,161,.5)'; ctx.lineWidth = 2;
+        ctx.setLineDash([6, 8]);
+        ctx.beginPath(); ctx.arc(n.x, n.y, 34 + Math.sin(performance.now() / 300) * 3, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // 当前阵位的覆盖圈
+    if (pad) {
+      const reach = tdReach();
+      ctx.strokeStyle = 'rgba(255,225,161,.30)'; ctx.lineWidth = 2; ctx.setLineDash([10, 10]);
+      ctx.beginPath(); ctx.arc(pad.x, pad.y, reach, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // 守卫
+    for (const g of TDR.guards) {
+      ctx.fillStyle = 'rgba(10,14,15,.8)'; ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = g.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(g.x, g.y, g.range * .5, 0, TAU); ctx.stroke();
+    }
+    // 传送连线（当前阵位 → 可达邻接）
+    if (pad) {
+      ctx.strokeStyle = 'rgba(255,225,161,.18)'; ctx.lineWidth = 3;
+      for (const id of pad.links) {
+        const n = TD.NODE_BY_ID.get(id); if (!n) continue;
+        ctx.beginPath(); ctx.moveTo(pad.x, pad.y); ctx.lineTo(n.x, n.y); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ---------- HUD ----------
+  function tdUpdateHud() {
+    if (!TDR.on) return;
+    const row = TD.WAVES.rows[Math.max(0, TDR.wave - 1)];
+    const waveNow = Math.min(TDR.wave, TD.WAVES.total);
+    if (TDu.waveFill) TDu.waveFill.style.width = (100 * waveNow / TD.WAVES.total) + '%';
+    if (TDu.waveText) TDu.waveText.textContent = `${waveNow} / ${TD.WAVES.total}`;
+    const pad = TDR.node;
+    if (TDu.heroLabel) TDu.heroLabel.textContent = heroes[game.player.type].name;
+    if (TDu.padLabel && pad) {
+      const q = pad.quad;
+      TDu.padLabel.textContent = `${'①②③④⑤'[pad.seq - 1]} 号阵 · ${q === 'LL' ? '左下' : q === 'LR' ? '右下' : q === 'UL' ? '左上' : '右上'}`;
+    }
+    if (TDu.coverLabel) {
+      const blocks = Math.min(5, Math.ceil(TDR.coverN / 2));
+      TDu.coverLabel.textContent = `覆盖 ${'▓'.repeat(blocks)}${'░'.repeat(5 - blocks)}（${TDR.coverN} 只）`;
+    }
+    // 小地图
+    if (TDu.minimapCv) tdDrawMinimap();
+  }
+
+  // ★ 塔防：移动端小地图点击 —— 点阵位 → 传送到该阵位；点队友 → 切换视角
+  //   （设计稿 §2.4：小地图是移动端唯一能快速定位阵位与队友的手段）
+  function tdMinimapClick(ev) {
+    if (game?.gameMode !== 'td') return;
+    const cv = TDu.minimapCv;
+    if (!cv) return;
+    const r = cv.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) / r.width * cv.width;
+    const my = (ev.clientY - r.top) / r.height * cv.height;
+    const wx = mx / (cv.width / TD.MAP.W), wy = my / (cv.height / TD.MAP.H);
+    // 队友点（联机）
+    if (game.allies) {
+      for (const [id, a] of game.allies) {
+        if (Math.hypot(a.x - wx, a.y - wy) < 60) { tdSetView(id); return; }
+      }
+    }
+    // 阵位点
+    let best = null, bd = 90;
+    for (const n of TD.MAP.nodes) {
+      const d = Math.hypot(n.x - wx, n.y - wy);
+      if (d < bd) { bd = d; best = n; }
+    }
+    if (best) tdTeleportTo(best, tdHops(TDR.node?.id, best.id));
+  }
+
+  function tdDrawMinimap() {
+    const cv = TDu.minimapCv;
+    if (!cv) return;
+    const g = cv.getContext('2d');
+    const W = cv.width, Hh = cv.height;
+    const sx = W / TD.MAP.W, sy = Hh / TD.MAP.H;
+    g.clearRect(0, 0, W, Hh);
+    g.fillStyle = '#16241a'; g.fillRect(0, 0, W, Hh);
+    // 路
+    g.strokeStyle = 'rgba(190,160,110,.8)'; g.lineWidth = 3;
+    for (const lane of TD.MAP.lanes) {
+      g.beginPath();
+      const pts = TD.normPts(lane.pts);
+      pts.forEach((q, i) => i ? g.lineTo(q.x * sx, q.y * sy) : g.moveTo(q.x * sx, q.y * sy));
+      g.stroke();
+    }
+    // 心脏
+    const H = TD.MAP.heart;
+    g.fillStyle = '#5fc8ff'; g.beginPath(); g.arc(H.x * sx, H.y * sy, 5, 0, TAU); g.fill();
+    // 阵位
+    for (const n of TD.MAP.nodes) {
+      const me = TDR.node && n.id === TDR.node.id;
+      g.fillStyle = me ? '#ffe1a1' : 'rgba(220,180,100,.65)';
+      g.beginPath(); g.arc(n.x * sx, n.y * sy, me ? 4 : 2.5, 0, TAU); g.fill();
+    }
+    // 敌人
+    g.fillStyle = '#e05a4a';
+    for (const e of game.enemies) {
+      if (e.dead || !e.tdLane) continue;
+      g.fillRect(e.x * sx - 1.5, e.y * sy - 1.5, 3, 3);
+    }
+  }
+
+
   function showModeChoice(origin) {
     mcOrigin = origin; mode = 'home'; game = null; keys.clear(); FX.clear();
+    // ★ 这里绝不能清空 pendingDungeon！
+    //   副本入口（renderDungeons 的卡片点击）是「先 pendingDungeon = did，再调 showModeChoice」，
+    //   若在此置空 → 模式页标题回退成「无尽模式」、建房 roomMode 变成 'adventure'、
+    //   gameMode 变成 'adventure'（无尽）→ 玩家从 UI 点任何副本（含 4 人团队副本）进的其实是无尽模式，
+    //   不产金币、不掉副本装备、通关不计副本通关数。
+    //   各入口已自行显式设置：nav-adventure（null）/ nav-td（null）/ 副本卡片（did）。
+    //   返回类调用（rooms-back / lobby-back / left）应保留当前副本 —— 这才是正确行为。
     hideAll(); showScreen('mode-choice');
     // 熔火之心：团队副本严格 4 人，隐藏单人入口
     const isRaid = !!pendingDungeon && DUNGEONS[pendingDungeon]?.type === 'raid';
@@ -1558,7 +2485,8 @@
     const mcStrong = ui['mc-multi'].querySelector('strong'), mcSmall = ui['mc-multi'].querySelector('small');
     if (mcStrong) mcStrong.textContent = isRaid ? '组队挑战（4 人）' : '组队挑战';
     if (mcSmall) mcSmall.textContent = isRaid ? '团队副本 · 需 4 名玩家' : '局域网联机 · 最多 4 人';
-    ui['mc-title'].textContent = pendingDungeon ? `冒险模式 · ${DUNGEONS[pendingDungeon].name}` : '无尽模式 · 无尽围攻';
+    ui['mc-title'].textContent = pendingMode === 'td' ? '塔防模式 · 守卫艾泽拉斯之心'
+      : (pendingDungeon ? `冒险模式 · ${DUNGEONS[pendingDungeon].name}` : '无尽模式 · 无尽围攻');
   }
   async function openRooms() {
     if (!NET.supported) { toast('联机需用 start.cmd 启动后，通过浏览器访问主机地址'); return; }
@@ -1806,7 +2734,8 @@
       if (achvFilter === 'dungeon') return a.cat === 'dungeon';
       if (achvFilter === 'raid') return a.cat === 'raid';
       if (achvFilter === 'endless') return a.cat === 'endless';
-      return a.cat !== 'dungeon' && a.cat !== 'raid' && a.cat !== 'endless';
+      if (achvFilter === 'td') return a.cat === 'td';
+      return a.cat !== 'dungeon' && a.cat !== 'raid' && a.cat !== 'endless' && a.cat !== 'td';
     });
     ui['achv-progress'].textContent = `${save.achievements.length} / ${ACHIEVEMENTS.length}`;
     document.querySelectorAll('.achv-tab').forEach(b => b.classList.toggle('selected', b.dataset.filter === achvFilter));
@@ -2066,6 +2995,9 @@
   }
 
   function nearestEnemy(maxRange = Infinity) {
+    // ★ 塔防模式：只在「阵位覆盖半径」内找目标 —— 覆盖圈外的怪不是你的猎物，
+    //   否则烈焰风暴这类「落在最近目标身上」的技能会把火圈丢到覆盖圈外。
+    if (game?.gameMode === 'td') maxRange = Math.min(maxRange, tdReach());
     let best = null, bestD = maxRange;
     for (const e of game.enemies) {
       if (e.dead) continue;
@@ -2150,6 +3082,13 @@
   // 瞄准射击（远程狙击卡）放大索敌与射程；急速射击期间（全域视野卡）全体攻击距离放大。
   function attackRange(p) {
     let r = p.range;
+    // ★ 塔防模式：普攻射程 = 阵位覆盖半径。
+    //   阵位离路径 104~132 码，若沿用职业原射程（战士 118 / 法师 560 / 猎人 580），
+    //   战士根本够不到路、法师猎人又溢出覆盖圈 → 「覆盖半径」类卡牌对谁都无意义。
+    //   统一成覆盖半径后：阵位 = 你的火力圈，进圈的怪就是你的目标。
+    //   注意 playerAttack 里 reach = base0 * (attackRange(p)/p.range)，
+    //   比值刚好抵消 p.range 的差异，因此这里改 r 即可。
+    if (game?.gameMode === 'td') return tdReach();
       if (p.type === 'hunter') {
         if (p.skillBasic === 'aimed_shot') r *= 1 + .25 * (p.mods.aim_range || 0);
         if (p.rapidT > 0) r *= 1 + .2 * (p.mods.rapid_range || 0);
@@ -2174,8 +3113,16 @@
       // 双弧剑锋
       game.effects.push({ type: 'slash', x: p.x, y: p.y, r: 10, maxR: r, life: .26, maxLife: .26, color: '#f3b47d', a0: rand(0, TAU) });
       game.effects.push({ type: 'slash', x: p.x, y: p.y, r: 10, maxR: r * .82, life: .22, maxLife: .22, color: '#ffe0b0', a0: rand(0, TAU) });
-      for (const e of game.enemies) {
-        if (!e.dead && distance(p, e) < r + e.r) damageEnemy(e, p.damage, Math.atan2(e.y - p.y, e.x - p.x), 'whirlwind');
+      // ★ 塔防模式：旋风判定为「三段斩」—— 只打范围内最靠近心脏的 3 个目标。
+      //   原因：塔防里技能范围 = 阵位覆盖半径（320 码），若旋风能打满整圈，
+      //   战士会变成纯 AoE 职业（实测 1 人局只漏 20 只，而法师 41、猎人 64 → 严重失衡）。
+      //   限 3 目标后战士回到 40，只靠「剑刃风暴」提供 AoE，与法师/猎人同档。
+      const hits = game.gameMode === 'td'
+        ? game.enemies.filter(e => !e.dead && distance(p, e) < r + e.r)
+          .sort((a, b) => (b.tdT ?? 0) - (a.tdT ?? 0)).slice(0, 3)
+        : game.enemies.filter(e => !e.dead && distance(p, e) < r + e.r);
+      for (const e of hits) {
+        damageEnemy(e, p.damage, Math.atan2(e.y - p.y, e.x - p.x), 'whirlwind');
       }
     } else if (skill === 'bloodthirst') {
       game.effects.push({ type: 'slash', x: target.x, y: target.y, r: 6, maxR: 50, life: .2, maxLife: .2, color: '#e77a63' });
@@ -2286,13 +3233,18 @@
       if (skill === 'double_shot' && mod('bullseye')) volleyDmg *= 1 + .15 * p.multishot; // 百发百中
       const arcaneVel = skill === 'arcane_missiles' ? (1 + .15 * (mod('arcane_velocity') || 0)) : 1;
       const arcaneLife = skill === 'arcane_missiles' ? p.range * arcaneVel : p.range;
-      for (let i = 0; i < count; i++) {
-        const a = base + (i - (count - 1) / 2) * .13;
-        game.projectiles.push({ x: p.x + Math.cos(a) * 22, y: p.y + Math.sin(a) * 22,
-          vx: Math.cos(a) * 620 * p.projectileSpeed * arcaneVel, vy: Math.sin(a) * 620 * p.projectileSpeed * arcaneVel,
-          r: p.type === 'mage' ? 6 : 4, damage: volleyDmg, life: arcaneLife / (620 * p.projectileSpeed * arcaneVel) + .12,
-          color: p.type === 'mage' ? '#7de7ff' : '#d4e99b', pierce: p.pierce + (skill === 'arcane_missiles' ? mod('arcane_pierce') : 0), hit: new Set(), skill });
-      }
+        for (let i = 0; i < count; i++) {
+          const a = base + (i - (count - 1) / 2) * .13;
+          game.projectiles.push({ x: p.x + Math.cos(a) * 22, y: p.y + Math.sin(a) * 22,
+            vx: Math.cos(a) * 620 * p.projectileSpeed * arcaneVel, vy: Math.sin(a) * 620 * p.projectileSpeed * arcaneVel,
+            r: p.type === 'mage' ? 6 : 4, damage: volleyDmg, life: arcaneLife / (620 * p.projectileSpeed * arcaneVel) + .12,
+            // ★ 塔防模式：猎人普攻额外贯穿 1 个目标（弓手沿路径贯穿怪群）。
+            //   与「多重射击」同一套塔防契约：猎人在塔防里的多目标能力来自贯穿，而非 AoE。
+            color: p.type === 'mage' ? '#7de7ff' : '#d4e99b',
+            pierce: p.pierce + (skill === 'arcane_missiles' ? mod('arcane_pierce') : 0)
+              + (game?.gameMode === 'td' && p.type === 'hunter' ? 1 : 0),
+            hit: new Set(), skill });
+        }
     }
     p.attackTimer = attackRate(p);
     p.atkAnim = .14; // 攻击动作脉冲
@@ -2519,6 +3471,7 @@
   function killEnemy(e) {
     if (e.dead) return;
     e.dead = true; const p = game.player;
+    const isTd = game.gameMode === 'td';
     // ===== 第 51 项修复（联机结算金币变 0）：击杀归属与记账主体必须一致 =====
     // 主机是权威结算方。队友击杀的金币既不能被主机代领（重复发放），
     // 也不能因归属丢失而谁都拿不到（结算页金币为 0）。
@@ -2536,12 +3489,18 @@
     const endless = game.gameMode !== 'dungeon';
     if (e.killedBy === 'bloodthirst' && p.mods.fury) p.furyT = 5;
     const pieces = e.boss ? 14 : e.type === 'golem' ? 3 : 1;
-    for (let i = 0; i < pieces; i++) game.gems.push({ x: e.x + rand(-18,18), y: e.y + rand(-18,18), r: e.boss ? 7 : 5, value: e.xp / pieces, vx: rand(-35,35), vy: rand(-35,35), color: e.boss ? '#ffd66e' : '#67d5d7' });
+    // ★ 塔防模式：英雄不能自由移动 → 经验宝石永远拾取不到，改为「击杀直接给经验」。
+    if (isTd) {
+      gainXp(e.xp);
+    } else {
+      for (let i = 0; i < pieces; i++) game.gems.push({ x: e.x + rand(-18,18), y: e.y + rand(-18,18), r: e.boss ? 7 : 5, value: e.xp / pieces, vx: rand(-35,35), vy: rand(-35,35), color: e.boss ? '#ffd66e' : '#67d5d7' });
+    }
     // 金币只在冒险（副本）模式产出；goldGain = 本次击杀的权威金币增量（随快照下发）
     let goldGain = 0;
-    if (!endless) { // 金币只在冒险（副本）模式产出
+    if (!endless || isTd) { // 金币在冒险（副本）与塔防模式产出
       // goldGain = 基础金币增量（由主机裁定并随快照下发，保证两端账目一致）
       goldGain = e.boss ? 50 : Math.random() < .25 ? 2 : 1;
+      if (isTd) goldGain = Math.round(goldGain * (1 + (TDR.goldBonus || 0)));
       if (awardLocally) {
         p.gold += goldGain;
         // goldFind 属各人装备效果（未联机同步），由击杀者本人本地结算
@@ -2580,6 +3539,11 @@
       if (!endless) { // 无尽模式不产装备卡牌
         if (Math.random() < (game.gameMode === 'dungeon' ? .03 : .025)) game.gearDrops++; // #45 提高装备卡掉率
         if (e.elite && Math.random() < .1) game.gearDrops++; // 精英额外概率
+      } else if (isTd) {
+        // ★ 塔防：产出「局内核心」（TD 版的装备卡）—— 击杀时掉落、三选一弹出、不暂停。
+        //   注意：绝不写 save.gearLearned / save.bag —— 塔防不产可入库的装备。
+        const dropChance = e.elite ? .18 : .035;
+        if (Math.random() < dropChance) game.tdCoreDrops++;
       }
     }
     // 复仇药水：击杀回血
@@ -2939,6 +3903,16 @@
     // pendingLevels → 反复调用 openLevelUp()，导致已倒下的玩家不断被弹出卡牌选择。
     // 倒地即视为退出战斗，不再升级；因此也不会再触发任何选卡浮层。
     if (p.downed) return;
+    // ★ 塔防模式：专用经验曲线 xpNeed(lv) = 6.12 × lv^1.45（塔防节奏更密）
+    if (game.gameMode === 'td') {
+      p.xp += value * (1 + (p.gearFx.xpGain || 0)) * (1 + (TDR.xpBonus || 0));
+      while (p.xp >= p.nextXp) {
+        p.xp -= p.nextXp; p.level++; p.nextXp = TD.WAVES.xpNeed(p.level);
+        game.pendingLevels++;
+      }
+      if (game.pendingLevels > 0 && mode === 'playing' && !game.gearPickOpen) openLevelUp();
+      return;
+    }
     p.xp += value * (1 + (p.gearFx.xpGain || 0));
     while (p.xp >= p.nextXp) {
       p.xp -= p.nextXp; p.level++; p.nextXp = Math.floor(30 + p.level * 16 + p.level * p.level * 1.3); // #43 升级曲线放缓，前期更快成型
@@ -2969,6 +3943,8 @@
   // 局内升级池 = 通用强化 + 已装备技能的专属强化卡
   function runUpgradePool() {
     const p = game.player;
+    // ★ 塔防模式：通用卡（塔防语义改写）+ TD 专属卡 + 技能专属卡
+    if (game.gameMode === 'td') return tdUpgradePool();
     const list = [...upgradePool];
     for (const s of SKILLS[p.type]) {
       if (s.id !== p.skillBasic && !ACTIVE_SLOTS.some(sl => p[sl.skill] === s.id)) continue;
@@ -2990,7 +3966,8 @@
     // 队友还在战斗时经验会持续涌入，倒地玩家若照常弹卡牌会被反复打断且无法操作。
     if (game.player?.downed) return;
     // #52 联机模式：选卡不暂停战斗（主机暂停会冻结全队），仅弹层继续游戏
-    const live = !!game.coop;
+    // ★ 塔防模式同样不暂停（英雄无敌 + 技能自动放，选卡不影响防守）
+    const live = !!game.coop || game.gameMode === 'td';
     if (live && game.levelupOpen) return;
     if (live) { game.levelupOpen = true; ui['levelup-live'].classList.remove('hidden'); ui.levelup.classList.add('live'); }
     else { mode = 'levelup'; ui['levelup-live'].classList.add('hidden'); ui.levelup.classList.remove('live'); }
@@ -3021,7 +3998,10 @@
     if (mode !== 'levelup' && !game?.levelupOpen) return; // #52 联机选卡时 mode 保持 playing
     const p = game.player;
     if (u.cls && u.cls !== p.type) { toast('该强化不属于当前职业，已自动拦截'); return; }
-    u.apply(p); p.upgrades[u.id] = (p.upgrades[u.id] || 0) + 1; game.pendingLevels--;
+    // ★ 塔防模式：TD 卡牌的 apply(p, ctx) 需要 ctx.td（读 TDR 状态），必须传 ctx，
+    //   否则选卡时抛 "Cannot read properties of undefined (reading 'td')"。
+    if (game.gameMode === 'td') tdApplyCard(u, p); else u.apply(p);
+    p.upgrades[u.id] = (p.upgrades[u.id] || 0) + 1; game.pendingLevels--;
     refreshBeastKing(); // 需求 12：兽群卡牌（增殖/野性呼唤/猎杀本能等）即时生效
     burst(p.x, p.y, '#ffe098', 20);
     FX.ring(p.x, p.y, u.type === '技能强化' ? '#8fd8f7' : '#ffe098', 18, { speed: 200 });
@@ -3195,6 +4175,9 @@
   // 伤害判定与视觉共用同一半径公式，强化范围后不会再出现特效仍停留在默认尺寸的问题。
   function skillAreaRadius(sid, p) {
     const mod = id => p.mods?.[id] || 0, gear = p.gearFx || {};
+    // ★ 塔防模式：技能范围统一 = 阵位覆盖半径（同 attackRange）。
+    //   站在传送圈里 = 你的技能能覆盖到圈内路径上的怪，这是塔防的操作契约。
+    if (game?.gameMode === 'td') return tdReach();
     if (sid === 'whirlwind') return p.range * (p.area || 1) * (1 + .15 * mod('wide')) * (p.rageT > 0 ? 1.3 : 1);
     if (sid === 'thunderclap') return p.range * (p.area || 1) * (mod('shock') ? 1.25 : 1) * (gear.stompRange || 1);
     if (sid === 'blade_storm') return p.range * (p.area || 1);
@@ -3489,7 +4472,10 @@
         game.projectiles.push({ x: p.x + Math.cos(ang) * 22, y: p.y + Math.sin(ang) * 22,
           vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
           r: 5, damage: dmg, life: p.range * 1.1 * reachK / spd + .1,
-          color: '#d4e99b', pierce: p.pierce + mod('msh_pierce'), hit: new Set(), skill: 'multi_shot',
+          // ★ 塔防模式：弓手站在传送圈里沿路径贯穿怪群 → 箭矢额外贯穿 1 个目标。
+          //   （塔防是「守一条路」的玩法，猎人的多目标能力必须来自贯穿，否则一套卡都是单体、
+          //     在密集怪潮里完全打不动 —— 数值模型实测：不开这个调整猎人 1 人局漏 271 只，开后 90 只。）
+          color: '#d4e99b', pierce: p.pierce + mod('msh_pierce') + (game?.gameMode === 'td' ? 1 : 0), hit: new Set(), skill: 'multi_shot',
           critBonus: mod('msh_crit') ? .15 : 0 });
       }
       p.atkAnim = .14;
@@ -3649,9 +4635,29 @@
       'msMomT', 'mshStormT', 'abRecoilT', 'abStacks', 'chargeT', 'chargeSlot', 'kcFocusT', 'kcSwiftT',
       'potDmgT', 'potLeechT', 'potMutT', 'potArmorT', 'potReduceT', 'potHotT', 'potRevengeT',
       'reviveT', 'reviveCd', 'reviveTarget', 'revivePending']) fresh[k] = p[k];
-    for (const [id, n] of Object.entries(p.upgrades)) {
-      const u = upgradePool.find(x => x.id === id);
-      if (u) for (let i = 0; i < n; i++) u.apply(fresh);
+    if (game.gameMode === 'td') {
+      // ★ 塔防模式：先把「卡牌带来的修正」归零，再按 TD 卡池重放 —— 保证幂等。
+      //   否则重算一次就会把「覆盖半径 +20%」这类乘算修正重复叠加。
+      tdResetModifiers();
+      const pool = tdUpgradePool();
+      // ★ 重放期间抑制一次性效果（召唤守卫 / 切换指令），见 tdInit 里的说明
+      TDR.replaying = true;
+      try {
+        for (const [id, n] of Object.entries(p.upgrades)) {
+          const u = pool.find(x => x.id === id);
+          if (u) for (let i = 0; i < n; i++) tdApplyCard(u, fresh);
+        }
+        // ★ 局内核心（TD 版的装备）也一起重放 —— 与强化卡同机制，保证幂等。
+        for (const rec of (game.tdCores || [])) {
+          const def = TD.TD_CORE_POOL.find(x => x.id === rec.id);
+          if (def) for (let i = 0; i < rec.lvl; i++) tdApplyCard(def, fresh);
+        }
+      } finally { TDR.replaying = false; }
+    } else {
+      for (const [id, n] of Object.entries(p.upgrades)) {
+        const u = upgradePool.find(x => x.id === id);
+        if (u) for (let i = 0; i < n; i++) u.apply(fresh);
+      }
     }
     for (const c of game.gear) {
       const g = GEAR[c.id];
@@ -3732,7 +4738,8 @@
     const hasNew = picks.some(k => k.kind === 'gear');
     const dualRow = full && hasNew;
     // #52 联机模式：选卡不暂停战斗
-    const live = !!game.coop;
+    // ★ 塔防模式同样不暂停（英雄无敌 + 技能自动放）
+    const live = !!game.coop || game.gameMode === 'td';
     if (live) { game.gearPickOpen = true; ui['gearpick-live'].classList.remove('hidden'); ui.gearpick.classList.add('live'); }
     else { mode = 'gearpick'; ui['gearpick-live'].classList.add('hidden'); ui.gearpick.classList.remove('live'); }
     ui.gearpick.classList.remove('hidden'); ui.gearpick.classList.add('active');
@@ -3893,6 +4900,12 @@
   function update(dt) {
     if (!game) return;
     const p = game.player;
+    // ★ 塔防模式：先跑 TD 专属逻辑（波次调度 / 自动施法 / 守卫 / 传送冷却），
+    //   随后**仍然走主 update 的通用段**（投射物 / 区域 / 陷阱 / 粒子 / 清理）——
+    //   这样技能弹道、AOE、DoT 等既有系统无需重写，也不会漏更新。
+    //   只有「玩家移动」与「敌人 AI」两处按 TD 规则改写。
+    const isTd = game.gameMode === 'td';
+    if (isTd) tdUpdate(dt);
     game.elapsed += dt;
     // 冒险（无尽）模式：首领 45 秒狂暴时限；副本模式：按节奏刷新、击杀尾王通关（联机时由主机权威判定）
     const isCoopClient = game.coop && !game.coop.host;
@@ -3937,6 +4950,8 @@
 
     let mx = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + joy.x;
     let my = (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) + joy.y;
+    // ★ 塔防模式：英雄不能自由移动（只能在传送阵之间瞬移），摇杆也无效
+    if (isTd) { mx = 0; my = 0; }
     const ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; } p.moveX = mx; p.moveY = my;
     if (ml > .08) { p.dirX = mx / (ml || 1); p.dirY = my / (ml || 1); }
     if (p.downed) { mx = 0; my = 0; } // #51 联机倒下后观战
@@ -3981,7 +4996,7 @@
       p.x += mx * speed * dt; p.y += my * speed * dt;
     }
     if (p.dashTime > 0) { p.dashTime -= dt; if (Math.random() < .7) game.particles.push({ x: p.x, y: p.y, vx: 0, vy: 0, life: .25, maxLife: .25, color: heroes[p.type].color, size: 9 }); }
-    if (p.attackTimer <= 0 && !p.downed && !(p.reviveT > 0)) playerAttack(); // 第 11 项：战复读条期间停止自动攻击
+    if (!isTd && p.attackTimer <= 0 && !p.downed && !(p.reviveT > 0)) playerAttack(); // 第 11 项：战复读条期间停止自动攻击；★ TD 由 tdAutoCast 驱动
 
     // 剑刃风暴
     if (p.bladeStormT > 0) {
@@ -3998,7 +5013,9 @@
     }
 
     // 首领节奏：副本按副本时间轴；冒险无尽模式每 90 秒一位（联机客户端不刷怪，由主机同步）
-    if (!isCoopClient) {
+    // ★ 塔防模式例外：怪物只由 tdNextWave/tdSpawnEnemy 产出（沿固定路径行进），常规出怪必须关掉，
+    //   否则常规游荡怪会混入 game.enemies，让 e.tdLane 判定失效、TD 怪看起来「不前进」。
+    if (!isCoopClient && !isTd) {
       const nextBossAt = game.gameMode === 'dungeon'
         ? (game.dungeon.bossTimes[game.bossIndex] ?? Infinity)
         : 55 + game.bossIndex * 90;
@@ -4036,6 +5053,8 @@
       if (e.poisT > 0) { e.poisT -= dt; dotDamage(e, (e.poisDps || 0) * dt, '#9fd86a'); if (e.dead) continue; }
       if (e.bleedT > 0) { e.bleedT -= dt; dotDamage(e, (e.bleedDps || 0) * dt, '#d94f5c'); if (e.dead) continue; }
       if (e.stunT > 0) continue; // 眩晕：无法移动与攻击
+      // ★ 塔防模式：怪物沿固定路径行进，不追玩家、不攻击英雄
+      if (e.tdLane) { tdMoveEnemy(e, dt); continue; }
       e.shootCd -= dt; e.specialCd -= dt;
       const tgt = game.coop ? nearestHero(e) : p; // #51 联机：攻击最近英雄
       const sp = e.speed * (e.slowT > 0 ? 1 - e.slow : 1);
@@ -4304,7 +5323,8 @@
       if (d < p.r + 12) { g.dead = true; gainXp(g.value); if (mode !== 'playing') break; }
     }
     for (const a of [game.particles, game.texts, game.effects]) for (const v of a) { v.life -= dt; if (v.vx !== undefined) { v.x += v.vx * dt; v.y += v.vy * dt; v.vx *= .96; v.vy *= .96; } }
-    game.enemies = game.enemies.filter(e => !e.dead && (e.boss || distance(e, p) < 1800)); // 首领不参与远距离清理，避免风筝时被误删
+    // ★ 塔防模式：地图很大（3072×1918），不能按「离玩家 1800 码」清理远处的怪
+    game.enemies = game.enemies.filter(e => !e.dead && (isTd || e.boss || distance(e, p) < 1800)); // 首领不参与远距离清理，避免风筝时被误删
     game.projectiles = game.projectiles.filter(q => q.life > 0);
     game.enemyShots = game.enemyShots.filter(q => q.life > 0);
     game.orbs = game.orbs.filter(o => {
@@ -4334,6 +5354,9 @@
     game.shake = Math.max(0, game.shake - 30 * dt); game.flash = Math.max(0, game.flash - dt);
     // 装备掉落卡牌（升级选卡空闲时弹出；#52 联机选卡中不重入）
     if (game.gearDrops > 0 && game.pendingLevels === 0 && !game.gearPickOpen && !game.levelupOpen) { game.gearDrops--; openGearPick(); }
+    // 塔防局内核心掉落卡（同样不暂停、不与强化卡/装备卡重入）
+    if (game.gameMode === 'td' && game.tdCoreDrops > 0 && game.pendingLevels === 0
+      && !game.gearPickOpen && !game.levelupOpen && !game.tdCoreOpen) { game.tdCoreDrops--; openTdCorePick(); }
     // 环境飘浮微粒（萤火/尘埃）
     if (Math.random() < dt * 5) FX.emit({ x: p.x + rand(-width / 2, width / 2), y: p.y + rand(-height / 2, height / 2),
       vx: rand(-8, 8), vy: rand(-14, -5), life: rand(2, 3.5), maxLife: 3.5, color: '#8fbf9a', size: rand(1, 2.2), glow: true, alpha: .3 });
@@ -4633,12 +5656,19 @@
   function updateHUD() {
     if (!game) return;
     const p = game.player;
+    if (game.gameMode === 'td') tdUpdateHud();   // ★ 塔防专属 HUD
     ui.level.textContent = `Lv.${p.level}`;
     ui['hp-bar'].style.width = `${100 * p.hp / p.maxHp}%`; ui['hp-text'].textContent = `${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;
     ui['xp-bar'].style.width = `${100 * p.xp / p.nextXp}%`;
     ui.time.textContent = formatTime(game.elapsed); ui.kills.textContent = p.kills; ui.gold.textContent = p.gold;
-    ui['dash-text'].textContent = p.dashCd > 0 ? `空格 · ${p.dashCd.toFixed(1)}s` : '空格 · 就绪';
-    ui['dash-cooldown'].style.transform = `scaleY(${p.dashCd / p.dashMax})`;
+    // ★ 塔防模式：空格位改显示「传送冷却」（英雄不能自由移动，闪现无意义）
+    if (game.gameMode === 'td') {
+      ui['dash-text'].textContent = TDR.tpCd > 0 ? `传送 · ${TDR.tpCd.toFixed(1)}s` : '方向键 · 传送就绪';
+      ui['dash-cooldown'].style.transform = `scaleY(${TDR.tpCd / Math.max(.1, TDR.tpCdMax)})`;
+    } else {
+      ui['dash-text'].textContent = p.dashCd > 0 ? `空格 · ${p.dashCd.toFixed(1)}s` : '空格 · 就绪';
+      ui['dash-cooldown'].style.transform = `scaleY(${p.dashCd / p.dashMax})`;
+    }
     // 第 20 项：4 个主动技能槽位统一渲染（Q / R / C / V）
     for (const slot of ACTIVE_SLOTS) {
       const suffix = slot.n === 1 ? '' : String(slot.n);
@@ -4774,6 +5804,23 @@
           fr.querySelector('.pf-hp-text').textContent = m.dead ? '倒下' : `${Math.ceil(m.hp)}`;
         }
       }
+      // ★ 塔防模式：点击左侧玩家列表 → 切换到该队友的视角；点自己 → 回到自己视角。
+      //   （需求：点击左侧玩家有效查看其他玩家角色视角，按空格或方向键回到自己视角）
+      const sig2 = members.map(m => m.key).join('|');
+      if (sig2 !== game._partyViewSig) {
+        game._partyViewSig = sig2;
+        pp.querySelectorAll('[data-pf]').forEach(fr => {
+          fr.classList.toggle('pf-viewing', game.gameMode === 'td' && fr.dataset.pf === (TDR.viewPad || 'self'));
+          fr.classList.toggle('pf-clickable', game.gameMode === 'td');
+          fr.onclick = () => {
+            if (game.gameMode !== 'td') return;
+            const key = fr.dataset.pf;
+            tdSetView(key === 'self' ? null : key);
+            // 高亮当前观看的对象
+            pp.querySelectorAll('[data-pf]').forEach(x => x.classList.toggle('pf-viewing', x === fr));
+          };
+        });
+      }
     }
   }
 
@@ -4835,6 +5882,7 @@
     game.gearPending = null;
     for (const id of ['levelup', 'gearpick', 'pause-screen']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
     const isDungeon = game.gameMode === 'dungeon';
+    const isTd = game.gameMode === 'td';
     // ===== 熔火之心团本：胜利后进入掉落 Roll 结算页（而非普通副本三选一）=====
     const isRaid = isDungeon && game.dungeon?.type === 'raid';
     // 主机生成掉落池并随 end 消息下发给全体客户端（各端使用同一批掉落，避免各算各的）
@@ -4851,7 +5899,7 @@
         lootLines.push(`${it.name} ×${q}`);
       }
     }
-    save.gold += isDungeon ? p.gold : 0; // 第 9 项：无尽模式不产出金币
+    save.gold += isDungeon ? p.gold : 0; // 第 9 项：无尽模式不产出金币；塔防局金币走成就发放
     save.stats.runs++; save.stats.totalKills += p.kills; save.stats.totalGold += isDungeon ? p.gold : 0;
     // ===== 第 9 项：无尽模式统计（用于无尽专属成就）=====
     const st = save.stats;
@@ -4879,6 +5927,22 @@
     }
     // 熔火之心：累计击败敌人数（成就用，失败也计入）
     if (isRaid) save.stats.raidKills = (save.stats.raidKills || 0) + p.kills;
+    // ===== 塔防模式统计（用于 cat:'td' 成就组）=====
+    if (isTd) {
+      const st = save.stats;
+      st.tdRuns = (st.tdRuns || 0) + 1;
+      st.tdBestWave = Math.max(st.tdBestWave || 0, Math.min(TDR.wave, TD.WAVES.total));
+      st.tdWavesCleared = (st.tdWavesCleared || 0) + (victory ? TD.WAVES.total : Math.max(0, TDR.wave - 1));
+      st.tdLeakBest = Math.min(st.tdLeakBest == null ? 999 : st.tdLeakBest, TDR.leaks);
+      st.tdKills = (st.tdKills || 0) + p.kills;
+      st.tdMaxKills = Math.max(st.tdMaxKills || 0, p.kills);
+      // 局内核心数量（累计等级）
+      const coreN = (game.tdCores || []).reduce((n, c) => n + c.lvl, 0);
+      st.tdMaxCores = Math.max(st.tdMaxCores || 0, coreN);
+      // 四人联机通关
+      if (victory && (game.playerCount || 1) >= 4) st.tdCoopClears = (st.tdCoopClears || 0) + 1;
+      tdTeardown();
+    }
     const hb = save.stats.best[p.type];
     if (!hb || game.elapsed > hb.time || (game.elapsed === hb.time && p.kills > hb.kills)) save.stats.best[p.type] = { time: game.elapsed, kills: p.kills };
     persist(); checkAchievements();
@@ -4927,7 +5991,9 @@
         const box = card.querySelector('.dg-img');
         if (box) box.classList.add('img-fallback');
       });
-      card.addEventListener('click', () => { pendingDungeon = did; showModeChoice('dungeons'); }); // #51 副本也先选单人/组队
+      // ★ 副本入口：必须同时清掉 pendingMode —— 否则玩家先进过塔防、再点副本卡片时
+      //   pendingMode 仍是 'td'，gameMode 会被判成 'td'、模式页标题也会显示「塔防模式」。
+      card.addEventListener('click', () => { pendingDungeon = did; pendingMode = null; showModeChoice('dungeons'); }); // #51 副本也先选单人/组队
       list.appendChild(card);
     }
   }
@@ -5280,12 +6346,30 @@
     }
     ctx.restore();
   }
-  function camera() { const p = game?.player || { x: 0, y: 0 }; return { x: p.x - width / 2, y: p.y - height / 2 }; }
+  function camera() {
+    const p = game?.player || { x: 0, y: 0 };
+    // ★ 塔防模式：地图有限（3072×1918），摄像机钳制在地图内，避免看到地图外的空白
+    if (game?.gameMode === 'td') {
+      // 联机观战：摄像机跟随被观看的队友
+      let fx = p.x, fy = p.y;
+      if (TDR.viewPad) {
+        const al = game.allies?.get(TDR.viewPad);
+        if (al) { fx = al.x; fy = al.y; }
+      }
+      // 拖动平移偏移（脱离跟随），松手 1.5 秒后自动回到跟随
+      const ox = TDR.camOff.x, oy = TDR.camOff.y;
+      return { x: Math.max(0, Math.min(Math.max(0, TD.MAP.W - width), fx - width / 2 + ox)),
+               y: Math.max(0, Math.min(Math.max(0, TD.MAP.H - height), fy - height / 2 + oy)) };
+    }
+    return { x: p.x - width / 2, y: p.y - height / 2 };
+  }
   function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     if (!game) { drawMenuGround(); return; }
     const cam = camera(); const sx = game.shake ? rand(-game.shake, game.shake) : 0, sy = game.shake ? rand(-game.shake, game.shake) : 0;
-    ctx.save(); ctx.translate(-cam.x + sx, -cam.y + sy); drawGround(cam);
+    ctx.save(); ctx.translate(-cam.x + sx, -cam.y + sy);
+    if (game.gameMode === 'td') tdDrawGround(cam); else drawGround(cam);
+    if (game.gameMode === 'td') tdDrawOverlay();   // ★ 心脏 / 传送阵 / 覆盖圈 / 守卫
     // 熔火之心：敌方地板预警（红色由淡转明）——画在地面层之上、角色之下
     for (const tg of game.telegraphs || []) drawTelegraph(tg);
     for (const z of game.zones) drawZone(z);
@@ -5843,8 +6927,10 @@
   ui.retry.addEventListener('click', () => { if (NET.connected && NET.room) { toast('等待房主重新开局'); openLobby(); } else newGame(); });
   ui['result-menu'].addEventListener('click', afterResult);
   ui['menu-home'].addEventListener('click', showHome);
-  ui['nav-adventure'].addEventListener('click', () => { pendingDungeon = null; showModeChoice('home'); }); // #51 先选单人/组队
-  ui['nav-dungeons'].addEventListener('click', openDungeons);
+  ui['nav-adventure'].addEventListener('click', () => { pendingDungeon = null; pendingMode = null; showModeChoice('home'); }); // #51 先选单人/组队
+  ui['nav-dungeons'].addEventListener('click', () => { pendingMode = null; openDungeons(); });
+  // ★ 塔防模式入口
+  ui['nav-td'].addEventListener('click', () => { pendingDungeon = null; pendingMode = 'td'; showModeChoice('home'); });
   ui['dungeons-back'].addEventListener('click', showHome);
   // 熔火之心团本：掉落结算页聊天框 + 关闭按钮
   ui['raid-chat-send'].addEventListener('click', () => {
@@ -6005,6 +7091,14 @@
 
   addEventListener('keydown', e => {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    // ★ 塔防模式：方向键 = 传送阵之间瞬移（不能自由移动）；空格 = 回到自己视角
+    //   用户口径：「按空格或方向键回到自己视角」→ 正在看队友时，方向键优先用于「回自己」，
+    //   否则方向键才是传送。两种操作不会打架。
+    if (game?.gameMode === 'td') {
+      const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.code];
+      if (dir) { if (TDR.viewPad) tdSetView(null); else tdTeleport(dir); return; }
+      if (e.code === 'Space') { if (TDR.viewPad) tdSetView(null); else dash(); return; }
+    }
     keys.add(e.code);
     if (e.code === 'Space') dash();
     // 第 20 项：主动技能 4 槽位 → Q / R / C / V
@@ -6042,9 +7136,68 @@
   ui['mobile-active4'].addEventListener('pointerdown', e => { e.preventDefault(); castActive(4); });
   ui['mobile-pot'].addEventListener('pointerdown', e => { e.preventDefault(); usePotion(); });
   ui['mobile-revive'].addEventListener('pointerdown', e => { e.preventDefault(); startRevive(); }); // 第 11 项
+  // ★ 塔防：画布点阵位传送 + 拖动平移视角（桌面鼠标与移动端触屏通用）
+  canvas.addEventListener('pointerdown', tdCanvasPointerDown);
+  canvas.addEventListener('pointermove', tdCanvasPointerMove);
+  canvas.addEventListener('pointerup', tdCanvasPointerUp);
+  canvas.addEventListener('pointercancel', () => { TDR.drag = null; });
 
+  // ★ 塔防：战术指令按钮（集火 / 清场 / 斩首 / 守序）+ 突进 / 闪现
+  for (const el of document.querySelectorAll('.td-cmd')) {
+    el.addEventListener('click', () => {
+      const cmd = el.dataset.cmd;
+      if (cmd === 'advance') { tdTeleport('up'); return; }     // 突进 = 向上一阵位
+      if (cmd === 'blink') {                                     // 闪现 = 跳到最近的可传送邻接
+        if (!TDR.node) return;
+        const nb = tdNeighbors(TDR.node);
+        const cand = nb.right || nb.left || nb.down || nb.up;
+        if (cand) { TDR.tpCd = 0; tdTeleport(cand === nb.right ? 'right' : cand === nb.left ? 'left' : cand === nb.down ? 'down' : 'up'); }
+        return;
+      }
+      tdSetCommand(cmd);
+    });
+  }
+  // ★ 塔防：局内核心弹层的「放弃」按钮
+  const tdCoreSkip = $('td-core-skip');
+  if (tdCoreSkip) tdCoreSkip.addEventListener('click', () => { if (game?.tdCoreOpen) tdSkipCore(); });
+  // ★ 塔防：小地图点击（移动端主要交互）
+  if (TDu.minimapCv) TDu.minimapCv.addEventListener('pointerdown', e => { e.preventDefault(); tdMinimapClick(e); });
   // 调试入口：window.game 可查看战局
   Object.defineProperty(window, 'game', { get: () => game });
+  // ★ 塔防调试入口（供 e2e 验收读取状态 / 触发动作）
+  Object.defineProperty(window, '__td', { get: () => ({
+    on: TDR.on, wave: TDR.wave, leaks: TDR.leaks, leakLimit: TDR.leakLimit,
+    lanes: TDR.lanes, node: TDR.node?.id, seq: TDR.node?.seq, quad: TDR.node?.quad,
+    cmd: TDR.cmd, reach: tdReach(), tpCd: TDR.tpCd, cover: TDR.coverN,
+    camOff: { x: TDR.camOff.x, y: TDR.camOff.y }, camFree: TDR.camFree,
+    cores: (game?.tdCores || []).map(c => c.id + ':' + c.lvl),
+    guards: TDR.guards.length, enemies: game?.enemies?.filter(e => !e.dead).length || 0,
+    level: game?.player?.level || 0, xp: game?.player?.xp || 0, nextXp: game?.player?.nextXp || 0,
+    pendingLevels: game?.pendingLevels || 0, gearDrops: game?.gearDrops || 0,
+    mode: mode, gameMode: game?.gameMode
+  }) });
+  Object.defineProperty(window, '__tdTeleport', { value: (dir) => tdTeleport(dir) });
+  Object.defineProperty(window, '__tdCommand', { value: (c) => tdSetCommand(c) });
+  // ★ 验收探针：造一只「打不死」的 TD 怪，用来稳定观测「沿路径行进」与「伤害为 0」。
+  //   （普通怪会被英雄秒掉，脚本两次采样之间就找不到活怪了。）
+  Object.defineProperty(window, '__tdSpawnProbe', { value: (lane) => {
+    if (!TDR.on) return null;
+    const e = tdSpawnEnemy(lane || TDR.lanes[0], 'normal', false);
+    e.hp = e.maxHp = 1e9; e.probe = true; e.speed = 60; e.name = '探针怪';
+    return e.nid;
+  } });
+  Object.defineProperty(window, '__tdEnemy', { value: (nid) => {
+    const e = game?.enemies?.find(x => x.nid === nid);
+    return e ? { nid: e.nid, lane: e.tdLane, t: e.tdT, dist: e.tdDist, hp: e.hp, damage: e.damage, x: e.x, y: e.y, dead: !!e.dead } : null;
+  } });
+  // ★ 验收：强制掉一个局内核心（模拟击杀掉落）
+  Object.defineProperty(window, '__tdDropCore', { value: () => {
+    if (!game) return 0;
+    game.tdCoreDrops = (game.tdCoreDrops || 0) + 1;
+    return game.tdCoreDrops;
+  } });
+  Object.defineProperty(window, '__tdCores', { get: () => (game?.tdCores || []).map(c => ({ id: c.id, lvl: c.lvl })) });
+  Object.defineProperty(window, '__tdStart', { value: () => { pendingMode = 'td'; pendingDungeon = null; newGame(); } });
   // 调试入口：window.__mode 暴露当前 UI 模式（验收脚本判断是否处于 playing）
   Object.defineProperty(window, '__mode', { get: () => mode });
   // #65 调试入口：window.__endRun 触发结算（供自动化验收走完整 endGame 路径）

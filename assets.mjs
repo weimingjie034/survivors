@@ -71,7 +71,14 @@ window.ASSETS = (() => {
     lordaeron: 'assets/scenes/lordaeron.jpg',
     wailing: 'assets/scenes/wailing.jpg',
     shadowfang: 'assets/scenes/shadowfang.jpg',
-    moltencore: 'assets/scenes/moltencore.jpg'   // 熔火之心（团队副本）
+    moltencore: 'assets/scenes/moltencore.jpg',  // 熔火之心（团队副本）
+    // ★ 塔防模式（td）：地面/道路可平铺材质 + 心脏/传送阵精灵。
+    //   几何（路网/阵位/心脏位置）一律由 TD_MAP 数据驱动，AI 只供材质 —— 见
+    //   coop-roguelite-design/塔防模式-地图美术落地.md
+    td_ground: 'assets/scenes/td/td_ground.jpg',
+    td_road: 'assets/scenes/td/td_road.jpg',
+    td_heart: 'assets/scenes/td/td_heart.png',
+    td_pad: 'assets/scenes/td/td_pad.png'
   };
   const images = {}, svgs = window.ICON_SVGS || {};
   const sceneImages = {};
