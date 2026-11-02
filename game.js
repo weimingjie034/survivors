@@ -1180,12 +1180,49 @@
     }
     return out;
   }
+  // ===== #66 启动时恢复存档身份（修：刷新后金币/技能被重置）=====
+  // 背景（实测复现）：带进度的档存在「azs-clean-save@昵称#存档码」这个 localStorage 键里，
+  //   而页面启动时 saveKey 恒为默认键「azs-clean-save」→ save 载入的是空档。
+  //   带进度的命名空间档只有在玩家点进「组队挑战」触发 setSaveNamespace 时才会被读出来，
+  //   于是「刷新后先玩单机 / 先看背包」看到的全是初始值 —— 表现为进度被重置。
+  // 修法：启动时用 azs-name（上次用过的昵称）+ 存档码把 saveKey 直接切到命名空间键，
+  //   并把命名空间档与默认档合并（只增不减），保证单机与联机读写同一份档。
+  function restoreSaveIdentity() {
+    let name = '';
+    try { name = (localStorage.getItem('azs-name') || '').trim(); } catch { }
+    if (!name) return false;
+    let code = '';
+    try { code = (getSaveCode(name) || '').trim().toUpperCase(); } catch { }
+    if (!code) code = deriveSaveCode(name);
+    const key = `${SAVE_KEY}@${name}${code ? '#' + code : ''}`;
+    let ns = null;
+    try { ns = JSON.parse(localStorage.getItem(key) || 'null'); } catch { }
+    const def = loadSave(SAVE_KEY);      // 默认档（单机时期的老进度）
+    if (!ns) {
+      // 命名空间档不存在，但默认档有内容 → 把默认档迁进命名空间键，之后统一走命名空间
+      if (def && (def.gold > 0 || (def.learned && Object.values(def.learned).some(a => a && a.length > 1)))) {
+        try { localStorage.setItem(key, JSON.stringify(def)); } catch { }
+        try { localStorage.setItem(SAVE_TS_PREFIX + key, String(Date.now())); } catch { }
+      }
+      saveNamespace = name; saveCode = code; saveKey = key;
+      return true;
+    }
+    // 命名空间档存在 → 与默认档合并（只增不减），两份进度都不丢
+    const merged = mergeSave(normalizeSave(ns), def);
+    save = merged;
+    saveNamespace = name; saveCode = code; saveKey = key;
+    try { localStorage.setItem(key, JSON.stringify(merged)); } catch { }
+    try { localStorage.setItem(SAVE_TS_PREFIX + key, String(Date.now())); } catch { }
+    return true;
+  }
+
   let save = loadSave(saveKey);
   function persist() {
     try { localStorage.setItem(saveKey, JSON.stringify(save)); } catch { }
     try { localStorage.setItem(SAVE_TS_PREFIX + saveKey, String(Date.now())); } catch { }
     scheduleCenterPush(); // #65 结算收益等变更同步到主机存档中心
   }
+  restoreSaveIdentity(); // #66 刷新后先恢复身份与命名空间档，避免进度显示为初始值
   persist(); // 立即写回规范化结果，清除旧档中混入的跨职业技能
 
   // ===== #65 联机存档：本地优先 + 主机存档中心镜像 =====
@@ -1231,8 +1268,14 @@
           }
         } catch { }
       }
+      // ★ #66 切换命名空间时不能直接 loadSave 覆盖当前档 ——
+      //   当前档里可能有「还没同步到主机」的新进度（金币/技能），直接覆盖会丢。
+      //   改成与目标命名空间档合并（只增不减），两份进度都保住。
+      const target = loadSave(key);
+      save = mergeSave(target, save);
       saveKey = key;
-      save = loadSave(key);
+      try { localStorage.setItem(key, JSON.stringify(save)); } catch { }
+      try { localStorage.setItem(SAVE_TS_PREFIX + key, String(Date.now())); } catch { }
       updateBest(); // 首页/菜单战绩展示刷新
     }
     if (ns) await syncFromCenter();
@@ -1474,11 +1517,25 @@
     if (!name) { warmup.net = true; return; } // 从未联机过 → 没有可预取的存档镜像，等玩家进联机页再连
     try {
       await NET.connect(name);
-      // 预取该昵称在主机存档中心的镜像（仅读取，不写回）
+      // 预取该昵称在主机存档中心的镜像
       const code = (getSaveCode(name) || '').trim().toUpperCase() || deriveSaveCode(name);
       const key = sanitizeProfileKey(`${name}#${code || 'DEFAULT'}`);
       const res = await NET.saveGet(key);
-      if (res && res.found && res.data) centerMirror.set(key, res.data);
+      if (res && res.found && res.data) {
+        centerMirror.set(key, res.data);
+        // ★ #66 启动预取时就把主机镜像合并进本地档 ——
+        //   否则「换设备/换浏览器」场景下，本地没有档时首页会显示初始值，
+        //   玩家要先进联机页才能看到自己真正的进度，表现为「刷新后被重置」。
+        //   合并是只增不减的，主机没有的本地进度同样保留。
+        if (saveNamespace === name) {
+          const merged = mergeSave(normalizeSave(res.data), save);
+          const changed = JSON.stringify(merged) !== JSON.stringify(save);
+          save = merged;
+          try { localStorage.setItem(saveKey, JSON.stringify(merged)); } catch { }
+          try { localStorage.setItem(SAVE_TS_PREFIX + saveKey, String(Date.now())); } catch { }
+          if (changed) { updateBest(); pushCenterNow(); }
+        }
+      }
     } catch { /* 预热失败不影响正常流程 */ }
     warmup.net = true;
   }

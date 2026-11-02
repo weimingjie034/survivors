@@ -7,6 +7,37 @@
  */
 window.ASSETS = (() => {
   'use strict';
+
+  // ===== #66 素材版本自愈 =====
+  // 素材走长缓存（max-age=31536000）后，浏览器一年内不再向服务器验证 → 素材被替换时
+  // 玩家会一直用旧素材，直到缓存自然过期。做法：服务端把素材指纹注入 HTML 的
+  // <meta name="asset-version">，这里启动时比对本地记录的指纹；指纹变了就清掉
+  // assets/ 的缓存条目并强制重载，让新素材立刻生效。
+  // 注意：只清 assets/，不动存档（localStorage 里存档和素材是两回事）。
+  (() => {
+    try {
+      const meta = document.querySelector('meta[name="asset-version"]');
+      const ver = meta && meta.getAttribute('content');
+      if (!ver) return;
+      const KEY = 'azs-asset-version';
+      const old = localStorage.getItem(KEY);
+      if (old === ver) return;           // 版本一致 → 缓存有效，什么都不用做
+      if (old) {
+        // 版本变了：清掉素材缓存（保留存档键）
+        const doomed = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.indexOf('assets/') === 0) doomed.push(k);
+        }
+        for (const k of doomed) localStorage.removeItem(k);
+        if (window.caches && caches.keys) {
+          try { caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))); } catch { }
+        }
+      }
+      localStorage.setItem(KEY, ver);
+    } catch { }
+  })();
+
   const MANIFEST = {
     mage: 'assets/sprites/mage.png',
     warrior: 'assets/sprites/warrior.png',
