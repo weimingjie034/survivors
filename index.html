@@ -222,10 +222,16 @@
     <section id="gearpick" class="screen modal hidden">
       <div class="modal-panel level-panel">
         <div class="eyebrow">LOOT</div>
-        <h2>战利品 · 选择一件</h2>
-        <p>时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备</p>
+        <h2 id="gearpick-title">战利品 · 选择一件</h2>
+        <p id="gearpick-desc">时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备</p>
         <p id="gearpick-live" class="live-hint hidden">⚔ 联机模式 · 战斗仍在继续，请快速抉择！</p>
         <div id="gear-cards" class="upgrade-cards"></div>
+        <!-- 装备栏已满时的双排布局：上排=本次掉落，下排=已装备的 5 件（先选上排，再选下排替换） -->
+        <div id="gear-slots" class="gear-slots hidden">
+          <div class="gear-slots-label" id="gear-slots-label">当前装备 · 选择一件替换</div>
+          <div id="gear-slot-cards" class="gear-slot-cards"></div>
+        </div>
+        <button id="gr-discard" class="text-button hidden">放弃本次掉落</button>
       </div>
     </section>
 
@@ -375,18 +381,6 @@
       </div>
     </section>
     <div id="announcement" class="announcement" aria-live="assertive"></div>
-
-    <!-- 装备替换（满 5 件时选择替换目标） -->
-    <section id="gear-replace" class="screen modal hidden">
-      <div class="modal-panel level-panel">
-        <div class="eyebrow">装备栏已满</div>
-        <h2>选择一件装备替换</h2>
-        <p id="gr-new">新装备</p>
-        <p id="gear-replace-live" class="live-hint hidden">⚔ 联机模式 · 战斗仍在继续，请快速抉择！</p>
-        <div id="replace-cards" class="upgrade-cards"></div>
-        <button id="gr-cancel" class="text-button">放弃新装备</button>
-      </div>
-    </section>
 
     <section id="levelup" class="screen modal hidden">
       <div class="modal-panel level-panel">

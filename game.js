@@ -1314,7 +1314,7 @@
   }
 
   const ui = {};
-  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','gear-replace','replace-cards','gr-new','gr-cancel','levelup-live','gearpick-live','gear-replace-live','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close'].forEach(id => ui[id] = $(id));
+  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close'].forEach(id => ui[id] = $(id));
 
   let width = innerWidth, height = innerHeight, dpr = 1;
   let selectedHero = 'mage';
@@ -1386,6 +1386,8 @@
       orbs: [], zones: [], pets: [], meteors: [], traps: [], particles: [], texts: [], effects: [], allyFx: [], spineFx: [], elapsed: 0, spawnTimer: .4, bossIndex: 0,
       pendingLevels: 0, shake: 0, flash: 0, totalDamage: 0, startedAt: Date.now(), loot: {}, bossKills: 0,
       gear: [], gearDrops: 0, bossAliveT: 0, _gearSig: null, _statsAt: 0,
+      // 装备栏已满时的两阶段选择：阶段一选中待带入的新装备（gearPending），阶段二指定替换目标
+      gearPending: null,
       // 熔火之心团本：地板延时预警（敌方技能红色区域，由淡转明后触发伤害）
       telegraphs: [],
       gameMode: pendingDungeon ? 'dungeon' : 'adventure', dungeon: pendingDungeon ? DUNGEONS[pendingDungeon] : null, dungeonId: pendingDungeon || null };
@@ -1402,7 +1404,7 @@
     mode = 'playing';
     if (game.raidTimer) { clearInterval(game.raidTimer); game.raidTimer = null; }
     game.raidLoot = null;
-    for (const id of ['home','menu','result','pause-screen','levelup','backpack','trainer','profession','achievements','gearpick','gear-replace','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
+    for (const id of ['home','menu','result','pause-screen','levelup','backpack','trainer','profession','achievements','gearpick','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
     ui.hud.classList.remove('hidden');
     const h = heroes[selectedHero];
     const p = game.player;
@@ -1462,7 +1464,7 @@
 
   function hideAll() {
     ui.hud.classList.add('hidden');
-    for (const id of ['home','menu','levelup','pause-screen','result','backpack','trainer','profession','achievements','gearpick','gear-replace','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); } // #53 补上联机三页，否则返回时旧页残留遮挡；#60 补 gear-detail，否则装备详情弹层会永久全屏盖住 HUD
+    for (const id of ['home','menu','levelup','pause-screen','result','backpack','trainer','profession','achievements','gearpick','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); } // #53 补上联机三页，否则返回时旧页残留遮挡；#60 补 gear-detail，否则装备详情弹层会永久全屏盖住 HUD
   }
   function showScreen(id) { ui[id].classList.remove('hidden'); ui[id].classList.add('active'); }
 
@@ -2942,7 +2944,7 @@
       p.xp -= p.nextXp; p.level++; p.nextXp = Math.floor(30 + p.level * 16 + p.level * p.level * 1.3); // #43 升级曲线放缓，前期更快成型
       game.pendingLevels++;
     }
-    if (game.pendingLevels > 0 && mode === 'playing' && !game.gearPickOpen && !game.gearReplaceOpen) openLevelUp();
+    if (game.pendingLevels > 0 && mode === 'playing' && !game.gearPickOpen) openLevelUp();
   }
 
   const upgradePool = [
@@ -3636,7 +3638,17 @@
     const fresh = freshPlayer(p.type);
     // 保留列表含 veinsT / veinsActive：换装备或重算属性时不应把「冰冷血脉」这类
     //   运行时 buff 静默清零（否则极寒爆发的结束边沿会丢失）。
-    for (const k of ['x', 'y', 'level', 'xp', 'nextXp', 'kills', 'gold', 'upgrades', 'mods', 'skillBasic', 'skillActive', 'skillActive2', 'skillActive3', 'skillActive4', 'activeCd', 'activeMax', 'activeCd2', 'activeMax2', 'activeCd3', 'activeMax3', 'activeCd4', 'activeMax4', 'potCd', 'dirX', 'dirY', 'attackTimer', 'moveX', 'moveY', 'veinsT', 'veinsActive']) fresh[k] = p[k];
+    // 2026-11-02：装备栏已满的替换流程改为玩家主动选择后，recomputePlayer() 的调用变频繁 ——
+    //   补齐全部运行时计时与状态（怒火/剑盾/急速/各职业 buff 计时/药水计时/无敌帧/战复读条与冷却等），
+    //   否则「换一件装备」会把正在生效的技能效果与战复冷却一起抹掉。
+    for (const k of ['x', 'y', 'level', 'xp', 'nextXp', 'kills', 'gold', 'upgrades', 'mods', 'skillBasic', 'skillActive', 'skillActive2', 'skillActive3', 'skillActive4', 'activeCd', 'activeMax', 'activeCd2', 'activeMax2', 'activeCd3', 'activeMax3', 'activeCd4', 'activeMax4', 'potCd', 'dirX', 'dirY', 'attackTimer', 'moveX', 'moveY', 'veinsT', 'veinsActive',
+      // —— 运行时 buff / 计时（换装备不得清零）——
+      'furyT', 'wallT', 'rapidT', 'bladeStormT', 'stormTick', 'atkAnim', 'castAnim', 'regen',
+      'invuln', 'dashCd', 'dashTime', 'barrierHp', 'barrierT', 'downed',
+      'brT', 'aspectT', 'brUsed', 'dsArmorT', 'chHasteT', 'chShieldT',
+      'msMomT', 'mshStormT', 'abRecoilT', 'abStacks', 'chargeT', 'chargeSlot', 'kcFocusT', 'kcSwiftT',
+      'potDmgT', 'potLeechT', 'potMutT', 'potArmorT', 'potReduceT', 'potHotT', 'potRevengeT',
+      'reviveT', 'reviveCd', 'reviveTarget', 'revivePending']) fresh[k] = p[k];
     for (const [id, n] of Object.entries(p.upgrades)) {
       const u = upgradePool.find(x => x.id === id);
       if (u) for (let i = 0; i < n; i++) u.apply(fresh);
@@ -3710,11 +3722,25 @@
     // 熔火强化卡放在最后（视觉上突出专属强化）
     if (moltenPick) picks.push(moltenPick);
     if (!picks.length) { p.gold += 20; announce('战利品折算 · +20 金币', '#ffe094', 1.4); return; }
+    // ===== 装备栏已满（5/5）时的双排选择 =====
+    // 需求：五件套已满时掉落新装备，不应「强制」玩家替换掉已选择并强化好的装备。
+    // 旧流程：先弹 gearpick 强制三选一 → 选中新装备才进第二个弹层选替换目标 → 感知上仍是强制替换。
+    // 新流程：同一个弹层里两排 —— 上排 = 本次掉落（新装备 / 强化已有装备），
+    //         下排 = 已装备的 5 件；先选上排，再点下排指定替换目标；也可直接「放弃本次掉落」。
+    // 「强化已有装备」卡不占栏位，点一下立即生效，无需进入第二阶段。
+    const full = game.gear.length >= 5;
+    const hasNew = picks.some(k => k.kind === 'gear');
+    const dualRow = full && hasNew;
     // #52 联机模式：选卡不暂停战斗
     const live = !!game.coop;
     if (live) { game.gearPickOpen = true; ui['gearpick-live'].classList.remove('hidden'); ui.gearpick.classList.add('live'); }
     else { mode = 'gearpick'; ui['gearpick-live'].classList.add('hidden'); ui.gearpick.classList.remove('live'); }
     ui.gearpick.classList.remove('hidden'); ui.gearpick.classList.add('active');
+    game.gearPending = null;
+    ui['gearpick-title'].textContent = dualRow ? '战利品 · 装备栏已满' : '战利品 · 选择一件';
+    ui['gearpick-desc'].textContent = dualRow
+      ? '上排：选择要带入的新装备（强化卡点一下直接生效）· 下排：选择要被替换掉的那一件 · 也可以直接放弃本次掉落'
+      : '时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备';
     ui['gear-cards'].innerHTML = '';
     picks.forEach((pick, i) => {
       const rc = RARITY[pick.rarity];
@@ -3736,18 +3762,75 @@
         const g = GEAR[pick.kind === 'gear' ? pick.id : pick.gearId];
         const cur = pick.kind === 'up' ? game.gear.find(c => c.id === pick.gearId) : null;
         button.className = 'upgrade rar-' + pick.rarity;
-        button.innerHTML = `<span class="up-icon">${gearIconHtml(pick.kind === 'gear' ? pick.id : pick.gearId)}</span><strong>${g.name}${cur ? ` Lv.${cur.lvl + 1}` : ''}</strong><span class="up-type" style="color:${rc.color}">${rc.name} · ${pick.kind === 'gear' ? '装备' : '强化'} · ${game.gear.length}/5 栏位</span><p>${pick.kind === 'gear' ? g.desc : `强化「${g.name}」：效果提升 50%${g.spec ? `<br>特化：${fxDesc(g.spec).join('，')}` : ''}`}</p><small>按 ${i + 1} 快速选择</small>`;
+        button.innerHTML = `<span class="up-icon">${gearIconHtml(pick.kind === 'gear' ? pick.id : pick.gearId)}</span><strong>${g.name}${cur ? ` Lv.${cur.lvl + 1}` : ''}</strong><span class="up-type" style="color:${rc.color}">${rc.name} · ${pick.kind === 'gear' ? '装备' : '强化'} · ${game.gear.length}/5 栏位</span><p>${pick.kind === 'gear' ? g.desc : `强化「${g.name}」：效果提升 50%${g.spec ? `<br>特化：${fxDesc(g.spec).join('，')}` : ''}`}</p><small>${pick.kind === 'gear' ? (dualRow ? '选择后再指定替换目标' : '按 ' + (i + 1) + ' 快速选择') : '按 ' + (i + 1) + ' 快速选择'}</small>`;
       }
-      button.addEventListener('click', () => chooseGear(pick));
+      button.addEventListener('click', () => chooseGear(pick, i));
       ui['gear-cards'].appendChild(button);
     });
+    // 下排：已装备的 5 件（仅满栏且有「新装备」时显示）
+    if (dualRow) {
+      ui['gear-slots'].classList.remove('hidden');
+      ui['gear-slots'].classList.remove('picking');
+      ui['gear-slots-label'].innerHTML = '当前装备 <span class="gs-hint">· 先在上排挑一件新装备，再点这里指定要替换掉的那件</span>';
+      ui['gr-discard'].classList.remove('hidden');
+      renderGearSlots();
+    } else {
+      ui['gear-slots'].classList.add('hidden');
+      ui['gear-slots'].classList.remove('picking');
+      ui['gr-discard'].classList.add('hidden');
+      ui['gear-slot-cards'].innerHTML = '';
+    }
+  }
+  // 下排渲染：当前已装备的 5 件（作为替换目标）
+  function renderGearSlots() {
+    const wrap = ui['gear-slot-cards'];
+    wrap.innerHTML = '';
+    game.gear.forEach((c, i) => {
+      const og = GEAR[c.id]; const rc = RARITY[og.rarity];
+      const b = document.createElement('button');
+      b.className = 'gear-slot rar-' + og.rarity;
+      b.innerHTML = `<span class="up-icon">${gearIconHtml(c.id)}</span><strong>${og.name}</strong>`
+        + `<span class="up-type" style="color:${rc.color}">${rc.name} · Lv.${c.lvl}</span>`
+        + `<small>替换掉这件</small>`;
+      b.addEventListener('click', () => replaceGearSlot(i));
+      wrap.appendChild(b);
+    });
+  }
+  // 阶段一：选中要带入的新装备 → 下排进入「指定替换目标」状态
+  function selectGearForReplace(pick, idx) {
+    game.gearPending = pick;
+    [...ui['gear-cards'].children].forEach((el, i) => {
+      el.classList.toggle('gear-cards-picked', i === idx);
+      el.classList.toggle('gear-cards-dim', i !== idx);
+    });
+    const g = GEAR[pick.id];
+    ui['gear-slots'].classList.add('picking');
+    ui['gear-slots-label'].innerHTML = `点击下方任意一件，替换为「<span style="color:${RARITY[g.rarity].color}">${g.name}</span>」`
+      + ` <span class="gs-hint">· 或再点一次上排改选其它新装备</span>`;
+  }
+  // 阶段二：指定替换目标 → 旧件下线、新件入栏
+  function replaceGearSlot(i) {
+    const pick = game.gearPending;
+    if (!pick) { toast('请先在上排选择一件新装备'); return; }
+    const g = GEAR[pick.id];
+    const oldC = game.gear[i];
+    const og = oldC ? GEAR[oldC.id] : null;
+    // 保持栏位顺序：被选中的那一格原地变成新装备（玩家能直观看到「换掉的是哪一件」）
+    game.gear[i] = { id: pick.id, lvl: 1 };
+    recomputePlayer();
+    if (g.rarity === 4) { save.stats.orangeGear++; }
+    if (save.gearLearned.includes(pick.id)) gainProf(g.school, 4);
+    persist();
+    announce(`替换装备 · ${og ? og.name : '空位'} → ${g.name}`, RARITY[g.rarity].color, 2.2);
+    game.gearPending = null;
+    closeGearPick(true);
   }
   // #45 专业熟练度：战斗中选择已研习的装备卡牌提升（新装备 +4 / 强化 +2）
   function gainProf(school, n) {
     if (!(school in save.professions)) return;
     save.professions[school] = Math.min(PROF_CAP, (save.professions[school] || 0) + n);
   }
-  function chooseGear(pick) {
+  function chooseGear(pick, idx) {
     if (mode !== 'gearpick' && !game?.gearPickOpen) return; // #52 联机选卡时 mode 保持 playing
     const p = game.player;
     // ===== 熔火之心团本橙装：专属强化卡分支 =====
@@ -3765,18 +3848,13 @@
       save.stats.maxGear = Math.max(save.stats.maxGear, game.gear.length);
       persist();
       FX.ring(p.x, p.y, '#ff7a2c', 20, { speed: 240 });
-      game.gearPickOpen = false;
-      mode = 'playing';
-      ui.gearpick.classList.add('hidden'); ui.gearpick.classList.remove('active');
-      checkAchievements();
-      if (game.pendingLevels > 0) openLevelUp();
-      updateHUD();
+      closeGearPick(true);
       return;
     }
     const g = GEAR[pick.kind === 'gear' ? pick.id : pick.gearId];
     if (pick.kind === 'gear') {
-      // #48 装备已满 5 件 → 弹出替换选择
-      if (game.gear.length >= 5) { openGearReplace(pick); return; }
+      // 装备已满 5 件 → 进入第二阶段：先选中新装备，再在下方指定替换目标（可中途改选 / 放弃）
+      if (game.gear.length >= 5) { selectGearForReplace(pick, idx); return; }
       game.gear.push({ id: pick.id, lvl: 1 });
       applyGearFx(p, g.fx, 1);
       if (g.rarity === 4) { save.stats.orangeGear++; }
@@ -3789,49 +3867,24 @@
     save.stats.maxGear = Math.max(save.stats.maxGear, game.gear.length);
     persist();
     FX.ring(p.x, p.y, RARITY[pick.rarity].color, 18, { speed: 210 });
-    game.gearPickOpen = false;
-    mode = 'playing';
-    ui.gearpick.classList.add('hidden'); ui.gearpick.classList.remove('active');
-    checkAchievements();
-    if (game.pendingLevels > 0) openLevelUp();
-    updateHUD();
+    closeGearPick(true);
   }
 
-  // #48 装备替换：满 5 件时选择一件旧装备替换为新装备
-  function openGearReplace(pick) {
-    // #52 联机模式：替换选择同样不暂停
-    const live = !!game.coop;
-    if (live) { game.gearReplaceOpen = true; ui['gear-replace-live'].classList.remove('hidden'); ui['gear-replace'].classList.add('live'); }
-    else { mode = 'gearreplace'; ui['gear-replace-live'].classList.add('hidden'); ui['gear-replace'].classList.remove('live'); }
+  // 关闭装备弹层。gained=false 表示「放弃本次掉落」——按既有折算规则补 20 金币，不让玩家白亏
+  function closeGearPick(gained) {
     ui.gearpick.classList.add('hidden'); ui.gearpick.classList.remove('active');
-    const g = GEAR[pick.id];
-    ui['gr-new'].innerHTML = `新装备：<span style="color:${RARITY[g.rarity].color}">${g.name}</span> · ${g.desc}`;
-    const wrap = ui['replace-cards']; wrap.innerHTML = '';
-    game.gear.forEach((c, i) => {
-      const og = GEAR[c.id]; const rc = RARITY[og.rarity];
-      const b = document.createElement('button');
-      b.className = 'upgrade rar-' + og.rarity;
-      b.innerHTML = `<span class="up-icon">${gearIconHtml(c.id)}</span><strong>${og.name} Lv.${c.lvl}</strong><span class="up-type" style="color:${rc.color}">${rc.name} · 当前装备</span><p>${og.desc}</p><small>点击替换为「${g.name}」</small>`;
-      b.addEventListener('click', () => {
-        game.gear.splice(i, 1);
-        game.gear.push({ id: pick.id, lvl: 1 });
-        recomputePlayer();
-        if (g.rarity === 4) save.stats.orangeGear++;
-        if (save.gearLearned.includes(pick.id)) gainProf(g.school, 4);
-        persist();
-        announce(`替换装备 · ${og.name} → ${g.name}`, RARITY[g.rarity].color, 2.2);
-        closeGearReplace(true);
-      });
-      wrap.appendChild(b);
-    });
-    ui['gear-replace'].classList.remove('hidden'); ui['gear-replace'].classList.add('active');
-  }
-  function closeGearReplace(gained) {
-    ui['gear-replace'].classList.add('hidden'); ui['gear-replace'].classList.remove('active');
-    game.gearPickOpen = false; game.gearReplaceOpen = false;
+    game.gearPickOpen = false; game.gearPending = null;
+    ui['gear-slots'].classList.add('hidden');
+    ui['gear-slots'].classList.remove('picking');
+    ui['gear-slot-cards'].innerHTML = '';
+    ui['gr-discard'].classList.add('hidden');
     mode = 'playing';
-    if (!gained) toast('已放弃新装备');
-    FX.ring(game.player.x, game.player.y, '#ffe098', 18, { speed: 210 });
+    if (!gained) {
+      const p = game.player;
+      p.gold += 20;
+      announce('放弃战利品 · 折算 +20 金币', '#ffe094', 1.8);
+      FX.ring(p.x, p.y, '#ffe098', 18, { speed: 210 });
+    }
     checkAchievements();
     if (game.pendingLevels > 0) openLevelUp();
     updateHUD();
@@ -4280,7 +4333,7 @@
     game.particles = game.particles.filter(v => v.life > 0); game.texts = game.texts.filter(v => v.life > 0); game.effects = game.effects.filter(v => v.life > 0);
     game.shake = Math.max(0, game.shake - 30 * dt); game.flash = Math.max(0, game.flash - dt);
     // 装备掉落卡牌（升级选卡空闲时弹出；#52 联机选卡中不重入）
-    if (game.gearDrops > 0 && game.pendingLevels === 0 && !game.gearPickOpen && !game.gearReplaceOpen && !game.levelupOpen) { game.gearDrops--; openGearPick(); }
+    if (game.gearDrops > 0 && game.pendingLevels === 0 && !game.gearPickOpen && !game.levelupOpen) { game.gearDrops--; openGearPick(); }
     // 环境飘浮微粒（萤火/尘埃）
     if (Math.random() < dt * 5) FX.emit({ x: p.x + rand(-width / 2, width / 2), y: p.y + rand(-height / 2, height / 2),
       vx: rand(-8, 8), vy: rand(-14, -5), life: rand(2, 3.5), maxLife: 3.5, color: '#8fbf9a', size: rand(1, 2.2), glow: true, alpha: .3 });
@@ -4778,8 +4831,9 @@
     if (!game || mode === 'result') return;
     mode = 'result'; const p = game.player;
     // #52 联机选卡浮层在结算时强制关闭
-    game.levelupOpen = game.gearPickOpen = game.gearReplaceOpen = false;
-    for (const id of ['levelup', 'gearpick', 'gear-replace', 'pause-screen']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
+    game.levelupOpen = game.gearPickOpen = false;
+    game.gearPending = null;
+    for (const id of ['levelup', 'gearpick', 'pause-screen']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
     const isDungeon = game.gameMode === 'dungeon';
     // ===== 熔火之心团本：胜利后进入掉落 Roll 结算页（而非普通副本三选一）=====
     const isRaid = isDungeon && game.dungeon?.type === 'raid';
@@ -5765,12 +5819,11 @@
       // 否则玩家会永远停在暂停态，表现为「战斗卡住且无法重新开始」。
       const brokenModal =
         (mode === 'gearpick' && !ui['gear-cards'].children.length) ||
-        (mode === 'gearreplace' && !ui['replace-cards'].children.length) ||
         (mode === 'levelup' && !ui['upgrade-cards'].children.length);
       if (brokenModal) {
         mode = 'playing';
-        for (const id of ['gearpick', 'gear-replace', 'levelup']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
-        if (game) { game.gearPickOpen = false; game.gearReplaceOpen = false; game.levelupOpen = false; }
+        for (const id of ['gearpick', 'levelup']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
+        if (game) { game.gearPickOpen = false; game.gearPending = null; game.levelupOpen = false; }
         toast('战斗出现异常，已自动恢复', '#ffb257');
       }
     }
@@ -5846,7 +5899,7 @@
   });
   ui['gd-close'].addEventListener('click', closeGearDetail);
   ui['gear-detail'].addEventListener('click', e => { if (e.target === ui['gear-detail']) closeGearDetail(); });
-  ui['gr-cancel'].addEventListener('click', () => { if (mode === 'gearreplace' || game?.gearReplaceOpen) closeGearReplace(false); });
+  ui['gr-discard'].addEventListener('click', () => { if (mode === 'gearpick' || game?.gearPickOpen) closeGearPick(false); });
   ui['char-tabs'].addEventListener('click', e => {
     const tab = e.target.closest('.char-tab'); if (!tab) return;
     bagClass = tab.dataset.class; renderBag();
@@ -5960,12 +6013,13 @@
     if (e.code === 'KeyF') startRevive(); // 第 11 项：战复
     if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
     // #52 联机选卡中（战斗未暂停）同样支持数字键快速选择
-    if ((mode === 'levelup' || mode === 'gearpick' || game?.levelupOpen || game?.gearPickOpen) && ['Digit1','Digit2','Digit3'].includes(e.code)) {
+    // 装备栏已满的双排模式下分两段：阶段一 Digit1~3 选上排新装备，阶段二 Digit1~5 选下排替换目标
+    const gearPicking = (mode === 'gearpick' || game?.gearPickOpen) && ui['gear-slots'].classList.contains('picking');
+    if (gearPicking && ['Digit1','Digit2','Digit3','Digit4','Digit5'].includes(e.code)) {
+      ui['gear-slot-cards'].children[Number(e.code.slice(-1)) - 1]?.click();
+    } else if ((mode === 'levelup' || mode === 'gearpick' || game?.levelupOpen || game?.gearPickOpen) && ['Digit1','Digit2','Digit3'].includes(e.code)) {
       const i = Number(e.code.slice(-1)) - 1;
       (game?.gearPickOpen || mode === 'gearpick' ? ui['gear-cards'] : ui['upgrade-cards']).children[i]?.click();
-    }
-    if ((mode === 'gearreplace' || game?.gearReplaceOpen) && ['Digit1','Digit2','Digit3','Digit4','Digit5'].includes(e.code)) {
-      ui['replace-cards'].children[Number(e.code.slice(-1)) - 1]?.click();
     }
   });
   addEventListener('keyup', e => keys.delete(e.code));
@@ -6059,6 +6113,13 @@
     if (!GEAR[gid]) return false;
     if (!save.gearLearned.includes(gid)) save.gearLearned.push(gid);
     persist(); return true;
+  } });
+  // 直接设置当前装备栏（验收用：验证「装备栏已满」时的双排替换流程）
+  Object.defineProperty(window, '__setGear', { value: (ids) => {
+    const g = game; if (!g) return null;
+    g.gear = (ids || []).filter(id => GEAR[id]).map(id => ({ id, lvl: 1 }));
+    recomputePlayer();
+    return g.gear.map(c => ({ id: c.id, lvl: c.lvl }));
   } });
   Object.defineProperty(window, '__killEnemy', { value: (n = 1) => {
     // 在玩家身边生成 n 个小怪并走真实 killEnemy 路径（验证无尽模式不产装备/金币）
