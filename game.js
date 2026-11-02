@@ -6114,6 +6114,12 @@
     if (!save.gearLearned.includes(gid)) save.gearLearned.push(gid);
     persist(); return true;
   } });
+  // 只在内存里研习、不落盘（线上只读验收用 —— 避免改动真实存档）
+  Object.defineProperty(window, '__learnGearMem', { value: (gid) => {
+    if (!GEAR[gid]) return false;
+    if (!save.gearLearned.includes(gid)) save.gearLearned.push(gid);
+    return true;
+  } });
   // 直接设置当前装备栏（验收用：验证「装备栏已满」时的双排替换流程）
   Object.defineProperty(window, '__setGear', { value: (ids) => {
     const g = game; if (!g) return null;
