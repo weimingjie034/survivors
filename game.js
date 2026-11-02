@@ -1352,6 +1352,13 @@
   let toastTimer = 0;
   const keys = new Set();
   const joy = { active: false, id: null, x: 0, y: 0 };
+  // ===== 移动端跟随摇杆（mobile.js）=====
+  // 移动端的"按到哪里哪里就是摇杆"由独立文件 mobile.js 实现（与塔防模式零耦合）。
+  // 它每帧把归一化方向写进 window.__mobileHook.dir，这里在 update() 里并入移动量。
+  const mobileDir = () => (window.__mobileHook && window.__mobileHook.dir) || { x: 0, y: 0 };
+  // 触觉反馈（移动端）：转发给 mobile.js 的震动表，iOS 无 vibrate 时静默降级。
+  // 桌面端调用它没有任何开销（mobile.js 内部按 haptic 开关判断）。
+  const haptic = (kind) => { try { window.__mobileHook && window.__mobileHook.buzz(kind); } catch { } };
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -1594,9 +1601,11 @@
   const TDR = {
     on: false,
     wave: 0, waveT: 0, waveLen: TD.WAVES.waveSeconds,
-    queue: [],               // 待出怪队列 [{ lane, kind, elite }]
+    queue: [],               // 待出怪队列 [{ lane, kind, elite, boss }]
     spawnAcc: 0, spawnInterval: 1,
     leaks: 0, leakLimit: 30,
+    // ★ 尾王（BOSS#3）状态：pending → killed / leaked。只有 killed 才算通关
+    finalBossState: 'none', pendingFinal: false,
     lanes: [], laneOwner: {},
     node: null,              // 当前阵位节点
     tpCd: 0, tpCdMax: TD.MAP.tpCd, rootLock: 0,
@@ -1604,6 +1613,7 @@
     reachBase: TD.MAP.reach, reachMul: 1, crossReach: 0,
     cmd: 'focus', dualCmd: false, focusDeep: false,
     guards: [],              // 守卫（绑定阵位，玩家传送时留在原阵）
+    guardPending: null,     // 守卫放置模式：{ kind, count, t, name }（抽到守卫卡后进入）
     cdScale: 1, threshold: 1, doubleCast: 0,
     xpBonus: 0, goldBonus: 0,
     burnOnHit: 0, chainKill: 0, burstStack: 0, executeTh: 0, armorPierce: 0,
@@ -1835,6 +1845,10 @@
     TDR.rallyT = 0;
     TDR.pendingDouble = null;
     TDR.coverN = 0;
+    // ★ 尾王状态重置（新一局）
+    TDR.finalBossState = 'none';
+    TDR.guardPending = null;
+    TDR.pendingFinal = false;
     // 局内核心（本局专属，结算后清空）
     if (!game.tdCores) game.tdCores = [];
     game.tdCores.length = 0;
@@ -1848,6 +1862,7 @@
     //       ① 每次重算都多召几个守卫（守卫数量爆炸）；
     //       ② 玩家手动切过的战术指令被卡牌重置回默认。
     TDR.spawnGuard = (p, kind) => { if (TDR.replaying) return; tdSpawnGuard(p, kind); };
+    TDR.requestGuard = (p, kind, count) => { if (TDR.replaying) return; tdRequestGuard(p, kind, count || 1); };
     TDR.setCommand = (c) => { if (TDR.replaying) return; tdSetCommand(c); };
 
     const p = game.player;
@@ -1912,8 +1927,15 @@
   }
 
   function tdNextWave() {
+    // ★ 尾王（BOSS#3）必须被击杀才算通关。
+    //   波次推进是纯时间驱动的 —— 若不在这里拦截，第 30 波计时结束时尾王可能还活着却直接判通关。
+    //   pendingFinal = true 时由 tdUpdate 每帧检查（尾王一死立刻结算，不必再等满一个波次时长）。
+    if (TDR.wave >= TD.WAVES.total) {
+      if (TDR.finalBossState !== 'killed') { TDR.pendingFinal = true; TDR.waveT = 0; return; }
+      endGame(true, '艾泽拉斯之心安然无恙，三十波攻势尽数击退。');
+      return;
+    }
     TDR.wave++;
-    if (TDR.wave > TD.WAVES.total) { endGame(true, '艾泽拉斯之心安然无恙，三十波攻势尽数击退。'); return; }
     const row = TD.WAVES.rows[TDR.wave - 1];
     // 本波出怪的路：从激活路里随机取 row.lanes 条
     const lanes = TDR.lanes.slice();
@@ -1928,11 +1950,19 @@
     const use = lanes.slice(0, Math.min(row.lanes, lanes.length));
     for (const lane of use) {
       for (let i = 0; i < row.count; i++) {
-        TDR.queue.push({ lane, kind: tdKindFor(row), elite: row.tags.includes('精英') && i === 0 });
+        // ★ 精英标记取 '精英波'（波次表的 tag 名）—— 原写作 '精英' 永远不匹配，精英怪从未出现过
+        TDR.queue.push({ lane, kind: tdKindFor(row), elite: row.tags.includes('精英波') && i === 0 });
       }
     }
     // 交错入场：打乱队列，避免一条路的怪连续出现
     for (let i = TDR.queue.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = TDR.queue[i]; TDR.queue[i] = TDR.queue[j]; TDR.queue[j] = t; }
+    // ★ 波次 BOSS（10/20/30 波各 1 只）：放在队首（本波第一只入场），不参与上面的洗牌。
+    //   优先安排到玩家当前覆盖得到的路（与普通怪同一套逻辑）—— 否则玩家只能眼看尾王走进心脏。
+    const bossSpec = TD.bossOfWave(TDR.wave);
+    if (bossSpec) {
+      const bossLane = (covered.find(l => use.includes(l)) || use[0] || lanes[0]);
+      TDR.queue.unshift({ lane: bossLane, kind: tdKindFor(row), elite: false, boss: bossSpec });
+    }
     // 出怪节奏：让本波怪恰好在波次时长内出完，但夹在 [0.15s, 3s] 之间。
     //   ★ 不夹上限的话第 1 波（3 只）会摊到 28 秒里 → 9 秒才出一只，开局空转；
     //   不夹下限的话第 30 波（188 只）会挤在 0.15 秒内 → 瞬时爆怪。
@@ -1952,11 +1982,11 @@
       if (game.enemies.length >= cap) { TDR.spawnAcc = TDR.spawnInterval; return; }  // 保持满速等待
       TDR.spawnAcc -= TDR.spawnInterval;
       const s = TDR.queue.shift();
-      tdSpawnEnemy(s.lane, s.kind, s.elite);
+      tdSpawnEnemy(s.lane, s.kind, s.elite, s.boss);
     }
   }
 
-  function tdSpawnEnemy(laneId, kind, elite) {
+  function tdSpawnEnemy(laneId, kind, elite, bossSpec) {
     const row = TD.WAVES.rows[Math.max(0, TDR.wave - 1)];
     const mul = TD.BALANCE.laneHpMult(game.playerCount || 1, laneId) || 1;
     const hp = row.hp * mul * (elite ? 3 : 1);
@@ -1976,6 +2006,32 @@
       // ★ TD 专属字段
       tdLane: laneId, tdDist: 0, tdT: 0, tdFly: !!def.flying, tdKind: kind
     };
+    // ★ 波次 BOSS（10/20/30 波各 1 只）
+    //   模型与名字复用 BOSS_ROSTER（31 位），塔防只保留血量与外观 —— kind 技能分支全部关闭
+    //   （塔防里怪物本来就不攻击，技能无意义）。
+    //   血量不套 laneHpMult 的 2/c 公式：用 bossHpMult(P) = 1 + 0.3×(P-1)，
+    //   因为人越多同时在场的输出火力越集中，首领血量必须跟涨。
+    if (bossSpec) {
+      const bd = BOSS_ROSTER[bossSpec.roster] || BOSS_ROSTER[0];
+      // ★ 首领不吃 laneHpMult（那是「本路怪密度」系数，首领是单个大目标），
+      //   只叠塔防专用的轻度人数系数（首领只走一路，只有 1~2 人能打到它）。
+      const bhp = row.hp * bossSpec.hpMul * TD.BALANCE.bossHpMult(game.playerCount || 1);
+      e.boss = true;
+      e.name = bd.name;
+      e.spine = bd.spine;                 // → bossSpineKey() 走这里，绘制用 BOSS 专属 Spine 模型
+      e.variant = bossSpec.roster;
+      e.spriteKey = 'boss' + (bossSpec.roster % 3 + 1);   // Spine 不可用时的回退立绘
+      e.r = bossSpec.r;
+      e.hp = e.maxHp = bhp;
+      e.speed = row.speed * bossSpec.speedMul;
+      e.xp = row.xp * bossSpec.xpMul;
+      e.color = '#c46b4f';
+      e.tint = null;
+      e.elite = false;
+      e.tdKind = 'boss';
+      e.tdBoss = bossSpec;
+      e.type = 'boss';
+    }
     game.enemies.push(e);
     return e;
   }
@@ -1997,14 +2053,22 @@
   }
 
   function tdLeak(e) {
-    TDR.leaks++;
+    // ★ 漏 1 只 BOSS 扣 5 只漏怪额度（设计案 §4 约定）
+    const cost = e.tdBoss ? (e.tdBoss.leakCost || 5) : 1;
+    TDR.leaks += cost;
     game.shake = Math.max(game.shake, 8);
     // ★ 漏怪是最重要的失败反馈：长震 + 红闪（移动端靠触觉，桌面端靠红闪）
     buzz([60, 80, 60]);
     game.flash = Math.max(game.flash || 0, .22);
     const H = TD.MAP.heart;
-    game.texts.push({ x: H.x, y: H.y - 70, text: '漏怪 +1', color: '#e05a4a', life: 1, size: 15 });
+    game.texts.push({ x: H.x, y: H.y - 70, text: cost > 1 ? `漏怪 +${cost}` : '漏怪 +1', color: '#e05a4a', life: 1, size: cost > 1 ? 20 : 15 });
     FX.ring(H.x, H.y, '#e05a4a', 32, { speed: 260 });
+    // ★ 尾王漏进心脏 = 直接判负（第 30 波之后已经没有下一波可打了）
+    if (e.tdBoss && TDR.wave >= TD.WAVES.total) {
+      TDR.finalBossState = 'leaked';
+      endGame(false, `尾王 ${e.name} 冲破防线 —— 艾泽拉斯之心沦陷。`);
+      return;
+    }
     if (TDR.leaks >= TDR.leakLimit) endGame(false, `艾泽拉斯之心被攻破 —— 累计漏怪 ${TDR.leaks} 只。`);
   }
 
@@ -2093,10 +2157,62 @@
       const cand = nb.right || nb.left || nb.up || nb.down;
       if (cand) host = cand;
     }
-    TDR.guards.push({ kind, x: host.x, y: host.y, padId: host.id, r: def.r,
-      range: def.range, dps: def.dps, color: def.color, life: 0, atkCd: 0, hp: 1, dead: false });
+    tdPlaceGuard(kind, host, 1);
+  }
+
+  // ---------- 守卫放置模式 ----------
+  // ★ 为什么需要：守卫是「守一条路」玩法的核心补偿线，但守卫只落在「玩家当前所在阵位」。
+  //   若必须在目标阵位上才能召唤，玩家就得为了抽到一张守卫卡专门跑位 ——
+  //   抽卡时机不可控，等于让这张卡大概率被浪费在错误的阵位上。
+  //   实测（tools/td/td-guard-cover.mjs）：1 人局 6 座守卫（射程 ≥260）可以 100% 覆盖 2 条路，
+  //   但前提是落点由玩家选择。因此这里把守卫卡改成「抽到后进入放置模式，点阵位选落点」。
+  const TD_GUARD_PLACE_TTL = 14;   // 秒；超时自动落在当前阵位（卡不会被浪费）
+
+  function tdRequestGuard(p, kind, count = 1) {
+    if (TDR.replaying) return;
+    if (TDR.guards.length >= (TDR.guardMax || 6)) { toast('守卫数量已达上限'); return; }
+    const def = TD.GUARD_KINDS[kind] || TD.GUARD_KINDS.turret;
+    TDR.guardPending = { kind, count, t: TD_GUARD_PLACE_TTL, name: def.name };
+    toast(`点任意传送阵放置「${def.name}」· ${TD_GUARD_PLACE_TTL}s 内有效`);
+  }
+
+  /** 在指定阵位落下一座守卫 */
+  function tdPlaceGuard(kind, host, count = 1) {
+    if (!host) return false;
+    const def = TD.GUARD_KINDS[kind] || TD.GUARD_KINDS.turret;
+    let placed = 0;
+    for (let i = 0; i < count; i++) {
+      if (TDR.guards.length >= (TDR.guardMax || 6)) { toast('守卫数量已达上限'); break; }
+      TDR.guards.push({ kind, x: host.x, y: host.y, padId: host.id, r: def.r,
+        range: def.range, dps: def.dps, color: def.color, life: 0, atkCd: 0, hp: 1, dead: false });
+      placed++;
+    }
+    if (!placed) return false;
     FX.ring(host.x, host.y, def.color, 20, { speed: 180 });
     game.texts.push({ x: host.x, y: host.y - 26, text: def.name + ' 就位', color: def.color, life: 1.1, size: 12 });
+    return true;
+  }
+
+  /** 放置模式：点中阵位 → 落守卫；不在放置模式则返回 false（交回给传送逻辑） */
+  function tdTryPlaceGuardAt(node) {
+    const g = TDR.guardPending;
+    if (!g || !node) return false;
+    const okPlace = tdPlaceGuard(g.kind, node, g.count);
+    TDR.guardPending = null;
+    if (okPlace) announce(`${g.name} 已就位 · ${node.id} 号阵`, g.count > 1 ? '#9fd3ff' : '#ffd98a', 1.4);
+    return true;
+  }
+
+  /** 放置模式超时 → 落在当前阵位（保证卡不浪费） */
+  function tdUpdateGuardPending(dt) {
+    const g = TDR.guardPending;
+    if (!g) return;
+    g.t -= dt;
+    if (g.t <= 0) {
+      TDR.guardPending = null;
+      tdPlaceGuard(g.kind, TDR.node, g.count);
+      toast(`${g.name} 已就位（当前阵位）`);
+    }
   }
 
   // 守卫攻击间隔（秒）。守卫是「塔」，按固定频率开火，而不是每帧结算。
@@ -2236,6 +2352,8 @@
     const w = tdWorldPos(e.clientX, e.clientY);
     const pad = tdHitPad(w.x, w.y);
     if (!pad) return;                            // 点空地 = 无操作
+    // ★ 守卫放置模式优先：点阵位 = 落守卫（而不是传送）
+    if (tdTryPlaceGuardAt(pad)) return;
     const hops = tdHops(TDR.node?.id, pad.id);
     tdTeleportTo(pad, hops);
   }
@@ -2293,9 +2411,19 @@
     TDR.waveT += dt;
     if (TDR.waveT >= TDR.waveLen) { TDR.waveT -= TDR.waveLen; tdNextWave(); }
     tdSpawnTick(dt);
+    // ★ 尾王结算：第 30 波计时结束后进入 pendingFinal，尾王被击杀 → 立刻通关
+    //   （不必再等满一个波次时长；漏怪则已在 tdLeak 里判负）
+    if (TDR.pendingFinal) {
+      if (TDR.finalBossState === 'killed') {
+        endGame(true, '艾泽拉斯之心安然无恙，三十波攻势尽数击退。');
+        return;
+      }
+      TDR.waveT = 0;   // 停在第 30 波，等待尾王被击杀
+    }
     // 自动施法 + 守卫
     tdAutoCast(dt);
     tdUpdateGuards(dt);
+    tdUpdateGuardPending(dt);
     // 怪物沿路径移动（在主 update 的敌人循环里被拦截调用，这里不需要重复）
     // 心柱血条 / 漏怪提示（TD 专属 HUD）
     const remain = Math.max(0, TDR.leakLimit - TDR.leaks);
@@ -2349,6 +2477,7 @@
     ctx.strokeStyle = 'rgba(95,200,255,.45)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(H.x, H.y, H.r * 1.5 * pulse, 0, TAU); ctx.stroke();
     // 传送阵
+    const placing = !!TDR.guardPending;
     for (const n of TD.MAP.nodes) {
       const isMe = pad && n.id === pad.id;
       const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 46);
@@ -2363,6 +2492,28 @@
         ctx.beginPath(); ctx.arc(n.x, n.y, 34 + Math.sin(performance.now() / 300) * 3, 0, TAU); ctx.stroke();
         ctx.setLineDash([]);
       }
+      // ★ 守卫放置模式：所有阵位脉冲高亮（当前阵位除外，它已经是黄色实心）
+      if (placing && !isMe) {
+        const ph = (performance.now() / 260) % 1;
+        ctx.strokeStyle = `rgba(120,255,190,${(0.85 * (1 - ph)).toFixed(3)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(n.x, n.y, 22 + ph * 20, 0, TAU); ctx.stroke();
+        // 落点准星
+        ctx.strokeStyle = 'rgba(120,255,190,.85)'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(n.x - 9, n.y); ctx.lineTo(n.x + 9, n.y);
+        ctx.moveTo(n.x, n.y - 9); ctx.lineTo(n.x, n.y + 9);
+        ctx.stroke();
+      }
+    }
+    // ★ 守卫放置模式：把「守卫射程」画成落点预览圆，让玩家看得见能覆盖到哪
+    if (placing && pad) {
+      const gd = TD.GUARD_KINDS[TDR.guardPending.kind] || TD.GUARD_KINDS.turret;
+      ctx.strokeStyle = 'rgba(120,255,190,.28)'; ctx.lineWidth = 2; ctx.setLineDash([8, 8]);
+      for (const n of TD.MAP.nodes) {
+        ctx.beginPath(); ctx.arc(n.x, n.y, gd.range, 0, TAU); ctx.stroke();
+      }
+      ctx.setLineDash([]);
     }
     // 当前阵位的覆盖圈
     if (pad) {
@@ -2398,9 +2549,23 @@
     if (TDu.waveText) TDu.waveText.textContent = `${waveNow} / ${TD.WAVES.total}`;
     const pad = TDR.node;
     if (TDu.heroLabel) TDu.heroLabel.textContent = heroes[game.player.type].name;
-    if (TDu.padLabel && pad) {
-      const q = pad.quad;
-      TDu.padLabel.textContent = `${'①②③④⑤'[pad.seq - 1]} 号阵 · ${q === 'LL' ? '左下' : q === 'LR' ? '右下' : q === 'UL' ? '左上' : '右上'}`;
+    if (TDu.padLabel) {
+      // ★ 守卫放置模式优先：HUD 必须明确告诉玩家「现在要点哪、超时去哪」
+      if (TDR.guardPending) {
+        const gp = TDR.guardPending;
+        const secs = Math.max(0, Math.ceil(gp.t));
+        TDu.padLabel.textContent = `放置「${gp.name}」· 点传送阵落位 · ${secs}s`;
+        TDu.padLabel.classList.add('td-placing');
+        if (TDu.padState) TDu.padState.classList.add('td-placing');
+      } else if (pad) {
+        const q = pad.quad;
+        TDu.padLabel.textContent = `${'①②③④⑤'[pad.seq - 1]} 号阵 · ${q === 'LL' ? '左下' : q === 'LR' ? '右下' : q === 'UL' ? '左上' : '右上'}`;
+        TDu.padLabel.classList.remove('td-placing');
+        if (TDu.padState) TDu.padState.classList.remove('td-placing');
+      } else {
+        TDu.padLabel.classList.remove('td-placing');
+        if (TDu.padState) TDu.padState.classList.remove('td-placing');
+      }
     }
     if (TDu.coverLabel) {
       const blocks = Math.min(5, Math.ceil(TDR.coverN / 2));
@@ -2432,7 +2597,11 @@
       const d = Math.hypot(n.x - wx, n.y - wy);
       if (d < bd) { bd = d; best = n; }
     }
-    if (best) tdTeleportTo(best, tdHops(TDR.node?.id, best.id));
+    if (best) {
+      // ★ 守卫放置模式优先：小地图点阵位 = 落守卫
+      if (tdTryPlaceGuardAt(best)) return;
+      tdTeleportTo(best, tdHops(TDR.node?.id, best.id));
+    }
   }
 
   function tdDrawMinimap() {
@@ -3485,6 +3654,8 @@
     // 联机客户端不做本地记账（金币与击杀数由主机按归属下发，避免重复或漏记）
     const awardLocally = !inCoop || (cooph && killerIsMe);
     if (awardLocally) p.kills++;
+    // 移动端触觉：只有「自己击杀」才震动（队友击杀不该震自己的手）
+    if (awardLocally) haptic(e.boss || e.elite ? 'bigKill' : 'kill');
     // ===== 第 9 项：无尽模式只产成就与药水，不产金币与装备 =====
     const endless = game.gameMode !== 'dungeon';
     if (e.killedBy === 'bloodthirst' && p.mods.fury) p.furyT = 5;
@@ -3530,6 +3701,13 @@
     if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain, gear: gearDropCount });
     // 掉落：首领必掉生命精华与装备卡牌，概率掉无尽药水与装备图纸；小怪不再掉落材料（#40）
     if (e.boss) {
+      if (isTd) {
+        // ★ 塔防：首领只产「局内核心」（塔防版的装备卡），不产药水/材料/图纸/装备卡
+        //   —— 塔防的持久产出改由成就系统给金币。
+        game.tdCoreDrops += 3;
+        // 尾王被击杀 → 通关结算（由 tdUpdate 每帧检查 pendingFinal）
+        if (e.tdBoss && TDR.wave >= TD.WAVES.total) TDR.finalBossState = 'killed';
+      } else {
       if (!endless) addLoot('essence', 2, e.x, e.y); // 无尽模式不产材料（材料可卖钱 → 变相产金币）
       const bossNo = (game.bossKills || 0) + 1;
       // ===== 第 9 项：无尽模式首领必掉药水（无尽模式的唯一产出之一）=====
@@ -3549,6 +3727,7 @@
         if (lockedPlans.length && Math.random() < .25) addLoot(lockedPlans[Math.floor(Math.random() * lockedPlans.length)], 1, e.x, e.y - 64);
         // ★ 装备卡牌掉落已在上方统一按「击杀归属」结算（gearDropCount），此处不再重复计
       }
+      }   // ← 非塔防分支结束
     } else {
       if (!endless && e.elite && Math.random() < .5) addLoot('essence', 1, e.x, e.y); // 精英额外掉落
       if (isTd) {
@@ -3618,6 +3797,7 @@
     }
     dealt = Math.max(1, dealt);
     p.hp -= dealt; p.invuln = .45; game.shake = 7; game.flash = .16; game.hitStop = Math.max(game.hitStop || 0, .035);
+    haptic('hurt'); // 移动端：受伤震动反馈
     if (p.mods.revenge) p.revenge = true;
     game.texts.push({ x: p.x, y: p.y - 30, text: `-${Math.round(dealt)}`, color: '#ff8073', life: .8, size: 17 });
     burst(p.x, p.y, '#e96e60', 8);
@@ -3930,6 +4110,7 @@
     while (p.xp >= p.nextXp) {
       p.xp -= p.nextXp; p.level++; p.nextXp = Math.floor(30 + p.level * 16 + p.level * p.level * 1.3); // #43 升级曲线放缓，前期更快成型
       game.pendingLevels++;
+      haptic('level'); // 移动端：升级震动
     }
     if (game.pendingLevels > 0 && mode === 'playing' && !game.gearPickOpen) openLevelUp();
   }
@@ -4269,6 +4450,7 @@
     const sid = p[slot.skill];
     if (!sid) return;
     if (p[slot.cd] > 0) return;
+    haptic('cast'); // 移动端：技能释放震动
     const mod = (id) => p.mods[id] || 0;
     const a = Math.atan2(p.dirY, p.dirX);
     let cd = 10;
@@ -4570,6 +4752,7 @@
     const potMult = 1 + .15 * (potLvl - 1); // 特效时长/强度随等级提升
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * Math.min(.9, .6 + .05 * (potLvl - 1)));
     p.potCd = 30;
+    haptic('heal'); // 移动端：药水震动
     FX.ring(p.x, p.y, '#8fe3a0', 18, { speed: 200 });
     burst(p.x, p.y, '#8fe3a0', 12);
     const apply = (eff) => {
@@ -4880,6 +5063,7 @@
       if (g.rarity === 4) { save.stats.orangeGear++; }
       if (save.gearLearned.includes(pick.id)) gainProf(g.school, 4);
       announce(`获得装备 · ${g.name}`, RARITY[g.rarity].color, 2);
+      haptic('loot'); // 移动端：获得装备震动
     } else {
       const c = game.gear.find(x => x.id === pick.gearId);
       if (c) { c.lvl++; applyGearFx(p, g.fx, .5); if (g.spec) applyGearFx(p, g.spec, 1); gainProf(g.school, 2); announce(`强化 · ${g.name} Lv.${c.lvl}`, RARITY[pick.rarity].color, 2); }
@@ -4961,8 +5145,10 @@
     for (const k of ['potDmgT', 'potLeechT', 'potMutT', 'potArmorT', 'potReduceT', 'potRevengeT']) p[k] = Math.max(0, p[k] - dt);
     if (p.potHotT > 0) { p.potHotT -= dt; p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .05 * dt); }
 
-    let mx = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + joy.x;
-    let my = (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) + joy.y;
+    // 移动向量 = 键盘方向 + 摇杆方向（桌面固定摇杆 / 移动端跟随摇杆）
+    const md = mobileDir();
+    let mx = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + joy.x + md.x;
+    let my = (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) + joy.y + md.y;
     // ★ 塔防模式：英雄不能自由移动（只能在传送阵之间瞬移），摇杆也无效
     if (isTd) { mx = 0; my = 0; }
     const ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; } p.moveX = mx; p.moveY = my;
@@ -5917,9 +6103,13 @@
     save.gold += isDungeon ? p.gold : 0; // 第 9 项：无尽模式不产出金币；塔防局金币走成就发放
     save.stats.runs++; save.stats.totalKills += p.kills; save.stats.totalGold += isDungeon ? p.gold : 0;
     // ===== 第 9 项：无尽模式统计（用于无尽专属成就）=====
+    // ★ 塔防局必须排除：TD 的 gameMode 是 'td'（不是 'dungeon'），
+    //   若不排除，塔防局会同时被记进「无尽局数 / 无尽首领击杀 / 无尽时长」→
+    //   无尽专属成就（无尽首领图鉴等）会被塔防的首领白嫖解锁。
     const st = save.stats;
-    st.endlessRuns = (st.endlessRuns || 0) + (isDungeon ? 0 : 1);
-    if (!isDungeon) {
+    const isEndless = !isDungeon && !isTd;
+    st.endlessRuns = (st.endlessRuns || 0) + (isEndless ? 1 : 0);
+    if (isEndless) {
       st.endlessMaxTime = Math.max(st.endlessMaxTime || 0, game.elapsed);
       st.endlessMaxKills = Math.max(st.endlessMaxKills || 0, p.kills);
       st.endlessBossKills = (st.endlessBossKills || 0) + (game.bossKills || 0);
@@ -7134,16 +7324,12 @@
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); if (mode === 'playing' && !game?.coop) togglePause(); }); // #52 联机不因失焦暂停
 
-  function joyMove(e) {
-    const r = ui.joystick.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), l = Math.hypot(dx, dy), max = r.width * .32;
-    joy.x = clamp(dx / max, -1, 1); joy.y = clamp(dy / max, -1, 1);
-    if (l > max) { joy.x = dx / l; joy.y = dy / l; }
-    ui.joystick.firstElementChild.style.transform = `translate(${joy.x * max}px,${joy.y * max}px)`;
-  }
-  ui.joystick.addEventListener('pointerdown', e => { joy.active = true; joy.id = e.pointerId; ui.joystick.setPointerCapture(e.pointerId); joyMove(e); });
-  ui.joystick.addEventListener('pointermove', e => { if (joy.active && e.pointerId === joy.id) joyMove(e); });
-  const joyEnd = () => { joy.active = false; joy.x = joy.y = 0; ui.joystick.firstElementChild.style.transform = ''; };
-  ui.joystick.addEventListener('pointerup', joyEnd); ui.joystick.addEventListener('pointercancel', joyEnd);
+  // ===== 移动端摇杆（跟随模式）已移交 mobile.js =====
+  // 移动端改为「按到哪里哪里就是摇杆」（左半屏任意处按下即就地生成），
+  // 由独立文件 mobile.js 实现 —— 与塔防模式零耦合，塔防任务可继续改本文件。
+  // 桌面端仍用键盘方向键，故此处的固定摇杆绑定不再需要。
+  // ★ 旧的固定摇杆事件绑定（joyMove / pointerdown / pointerup）已删除：
+  //   若保留会与 mobile.js 的跟随摇杆双写 joy.x/joy.y → 方向互相覆盖、角色乱抖。
   ui['mobile-dash'].addEventListener('pointerdown', e => { e.preventDefault(); dash(); });
   ui['mobile-active'].addEventListener('pointerdown', e => { e.preventDefault(); castActive(1); });
   ui['mobile-active2'].addEventListener('pointerdown', e => { e.preventDefault(); castActive(2); });
@@ -7187,6 +7373,8 @@
     camOff: { x: TDR.camOff.x, y: TDR.camOff.y }, camFree: TDR.camFree,
     cores: (game?.tdCores || []).map(c => c.id + ':' + c.lvl),
     guards: TDR.guards.length, enemies: game?.enemies?.filter(e => !e.dead).length || 0,
+    guardPending: TDR.guardPending ? { kind: TDR.guardPending.kind, count: TDR.guardPending.count, name: TDR.guardPending.name, t: Math.ceil(TDR.guardPending.t) } : null,
+    guardList: TDR.guards.map(g => ({ kind: g.kind, padId: g.padId, x: g.x, y: g.y, range: g.range })),
     level: game?.player?.level || 0, xp: game?.player?.xp || 0, nextXp: game?.player?.nextXp || 0,
     pendingLevels: game?.pendingLevels || 0, gearDrops: game?.gearDrops || 0,
     mode: mode, gameMode: game?.gameMode
@@ -7213,12 +7401,71 @@
   } });
   Object.defineProperty(window, '__tdCores', { get: () => (game?.tdCores || []).map(c => ({ id: c.id, lvl: c.lvl })) });
   Object.defineProperty(window, '__tdStart', { value: () => { pendingMode = 'td'; pendingDungeon = null; newGame(); } });
+  // ★ 验收：读取当前场上的 BOSS（波次 BOSS）
+  Object.defineProperty(window, '__tdBoss', { get: () => {
+    const e = game?.enemies?.find(x => x.tdBoss && !x.dead);
+    return e ? { nid: e.nid, name: e.name, label: e.tdBoss.label, hp: e.hp, maxHp: e.maxHp,
+      r: e.r, lane: e.tdLane, t: e.tdT, boss: !!e.boss, spine: e.spine || null } : null;
+  } });
+  // ★ 验收：跳到指定波次（用于验证 BOSS 波 / 尾王结算）
+  Object.defineProperty(window, '__tdSetWave', { value: (n) => {
+    if (!TDR.on) return 0;
+    const target = Math.max(1, Math.min(TD.WAVES.total, n | 0));
+    TDR.queue.length = 0;
+    for (const e of game.enemies) if (e.tdLane) e.dead = true;   // 清场，避免旧波次残留
+    TDR.wave = target - 1;
+    TDR.waveT = TDR.waveLen - .05;
+    return target;
+  } });
+  // ★ 验收：强制击杀当前 BOSS（验证尾王 → 通关判定）
+  Object.defineProperty(window, '__tdKillBoss', { value: () => {
+    const e = game?.enemies?.find(x => x.tdBoss && !x.dead);
+    if (!e) return null;
+    damageEnemy(e, e.hp + 1, 0, 'td_probe');
+    return e.name;
+  } });
+  // ★ 验收：立刻结束当前波次（推进到下一波 / 触发尾王等待判定）
+  Object.defineProperty(window, '__tdFinishWave', { value: () => {
+    if (!TDR.on) return 0;
+    TDR.waveT = TDR.waveLen;
+    return TDR.wave;
+  } });
+  // ★ 验收：进入守卫放置模式（等价于抽到一张守卫卡）
+  Object.defineProperty(window, '__tdRequestGuard', { value: (kind, count) => {
+    if (!TDR.on) return null;
+    tdRequestGuard(game.player, kind || 'turret', count || 1);
+    return TDR.guardPending ? { ...TDR.guardPending } : null;
+  } });
+  // ★ 验收：把守卫直接落到指定阵位（绕过放置模式）
+  Object.defineProperty(window, '__tdPlaceGuard', { value: (padId, kind, count) => {
+    if (!TDR.on) return false;
+    const n = TD.NODE_BY_ID.get(padId);
+    if (!n) return false;
+    return tdPlaceGuard(kind || 'turret', n, count || 1);
+  } });
+  // ★ 验收：在指定阵位点击（模拟真实点击路径：画布命中判定 → 放置守卫 → 否则传送）
+  Object.defineProperty(window, '__tdClickPad', { value: (padId) => {
+    if (!TDR.on) return { placed: false, reason: 'not-on' };
+    const n = TD.NODE_BY_ID.get(padId);
+    if (!n) return { placed: false, reason: 'no-node' };
+    if (tdTryPlaceGuardAt(n)) return { placed: true, padId };
+    return { placed: false, reason: 'no-pending' };
+  } });
+  // ★ 验收：守卫放置模式超时（推进剩余秒数）
+  Object.defineProperty(window, '__tdTickGuardPending', { value: (dt) => {
+    if (!TDR.on || !TDR.guardPending) return null;
+    tdUpdateGuardPending(dt);
+    return TDR.guardPending ? { ...TDR.guardPending } : null;
+  } });
   // 调试入口：window.__mode 暴露当前 UI 模式（验收脚本判断是否处于 playing）
   Object.defineProperty(window, '__mode', { get: () => mode });
   // #65 调试入口：window.__endRun 触发结算（供自动化验收走完整 endGame 路径）
   Object.defineProperty(window, '__endRun', { value: (victory, reason) => endGame(victory !== false, reason || '验收测试结算') });
   // 第 6 项调试入口：window.__gainXp 模拟队友战斗带来的击杀经验广播（验证倒地后不再弹卡牌）
   Object.defineProperty(window, '__gainXp', { value: (v) => gainXp(v | 0) });
+  // 验收钩子：精确挂起一级升级并立即弹出升级弹层（__gainXp(大数) 会连升几十级，
+  //   弹层永远关不完 → 收尾时回不到 playing 态）
+  Object.defineProperty(window, '__openLevelUp', { value: () => { game.pendingLevels = 1; openLevelUp(); return true; } });
   // 第 9/10/11 项调试入口（供自动化验收读取设计数据与触发真实战斗路径）
   Object.defineProperty(window, '__design', { value: () => ({ dungeons: DUNGEONS, roster: BOSS_ROSTER, bossTimes: DUNGEON_BOSS_TIMES, achv: ACHIEVEMENTS, setSlots: SET_SLOTS }) });
   // ===== 熔火之心团本橙装验收入口 =====

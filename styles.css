@@ -1,5 +1,5 @@
 :root{--gold:#e9bd67;--gold-bright:#ffe1a1;--ink:#090d12;--panel:#101820;--blue:#66c7e8;--red:#e45c52;--text:#f3ead8;--muted:#9eaaa9}
-*{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#080d10;color:var(--text);font-family:Inter,"Microsoft YaHei",sans-serif}button{font:inherit}button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:4px}#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#101a19}.hidden{display:none!important}
+*{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#080d10;color:var(--text);font-family:Inter,"Microsoft YaHei",sans-serif;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}button{font:inherit}button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:4px}#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#101a19;touch-action:none}.hidden{display:none!important}
 .screen{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center}.screen.active{display:flex}.menu-backdrop{position:absolute;inset:0;background:radial-gradient(circle at 50% 18%,rgba(41,82,79,.35),transparent 42%),linear-gradient(180deg,rgba(5,10,13,.42),#070b0f 96%);overflow:hidden}.menu-backdrop:before,.menu-backdrop:after{content:"";position:absolute;width:520px;height:520px;border:1px solid rgba(218,183,111,.08);transform:rotate(45deg);left:calc(50% - 260px);top:-340px}.menu-backdrop:after{top:auto;bottom:-430px}.menu-content{position:relative;width:min(1100px,94vw);text-align:center;padding:24px 0;max-height:100vh;overflow:auto;scrollbar-width:none}.eyebrow{text-transform:uppercase;letter-spacing:.3em;color:var(--gold);font-size:11px;font-weight:700;margin-bottom:12px}h1,h2{font-family:"Noto Serif SC",Georgia,serif;margin:0}h1{font-size:clamp(40px,6vw,72px);line-height:1.1;letter-spacing:.06em;text-shadow:0 4px 35px #000}h1 span{color:var(--gold-bright);margin-right:.18em}.tagline{color:#aab6b4;font-size:14px;letter-spacing:.12em;margin:14px 0 28px}.heroes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:0 auto 22px}.hero{position:relative;min-height:270px;padding:20px 18px 17px;border:1px solid #34413f;background:linear-gradient(150deg,rgba(28,40,44,.93),rgba(12,18,23,.96));color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:center;transition:.2s transform,.2s border-color,.2s box-shadow;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px)}.hero:hover{transform:translateY(-4px);border-color:#8d805d}.hero.selected{border-color:var(--gold);box-shadow:inset 0 0 35px rgba(228,183,94,.09),0 8px 35px rgba(0,0,0,.4)}.hero.selected:after{content:"已选择";position:absolute;right:12px;top:10px;color:var(--gold);font-size:10px;letter-spacing:.12em}.hero-icon{display:grid;place-items:center;width:74px;height:74px;border-radius:50%;font-size:40px;margin:2px 0 13px;border:1px solid currentColor;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 68%);box-shadow:0 0 30px rgba(103,200,232,.1)}.hero-icon.mage{color:#79d8f4}.hero-icon.warrior{color:#ef9e73}.hero-icon.hunter{color:#9bd281}.hero-class{font-family:"Noto Serif SC",serif;font-weight:700;font-size:21px}.hero-role{font-size:11px;color:var(--gold);letter-spacing:.15em;margin:6px 0 12px}.hero-desc{color:#a8b1b0;font-size:12px;line-height:1.7;max-width:240px;min-height:42px}.stats{display:flex;gap:12px;margin-top:auto;padding-top:14px;color:#d3d9d5;font-size:10px}.stats i{font-style:normal}.primary{border:1px solid #f0cf88;background:linear-gradient(#d8ad5c,#9c6b29);color:#16130d;min-width:260px;padding:12px 34px;cursor:pointer;font-weight:800;letter-spacing:.12em;box-shadow:0 5px 25px rgba(205,154,69,.2);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}.primary:hover{filter:brightness(1.13)}.primary span,.primary small{display:block}.primary small{font-size:9px;font-weight:500;letter-spacing:.06em;opacity:.65;margin-top:3px}.menu-footer{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-top:18px;color:#788786;font-size:11px}.menu-footer kbd{border:1px solid #46514f;border-radius:3px;padding:2px 5px;color:#b6c1bd;background:#151d20}.best{height:18px;margin-top:10px;font-size:11px;color:#9c8b68}
 .hud{position:absolute;inset:0;z-index:5;pointer-events:none}.topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(#071014d9,transparent)}.portrait{width:52px;height:52px;display:grid;place-items:center;border:2px solid var(--gold);border-radius:50%;font-size:28px;color:var(--blue);background:#16232a;box-shadow:0 2px 15px #000}.vitals{width:240px}.identity{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}.identity strong{font-family:"Noto Serif SC",serif}.identity span{color:var(--gold)}.bar{position:relative;height:14px;background:#101619;border:1px solid #46504a;overflow:hidden}.bar i{display:block;height:100%;width:100%;transition:width .15s}.bar span{position:absolute;inset:0;text-align:center;font-size:9px;line-height:11px;text-shadow:0 1px 2px #000}.bar.health i{background:linear-gradient(90deg,#8e252b,#d9584c)}.bar.xp{height:6px;margin-top:4px;border-color:#344c51}.bar.xp i{background:linear-gradient(90deg,#3689a4,#76d9e9);width:0}.timer{position:absolute;left:50%;transform:translateX(-50%);top:17px;text-align:center}.timer span{display:block;font-family:Georgia,serif;font-size:30px;letter-spacing:.08em;color:#fff3d5;text-shadow:0 2px 8px #000}.timer small{font-size:9px;color:#9fa9a4;letter-spacing:.25em}.counters{margin-left:auto;display:flex;gap:20px}.counters div{text-align:center}.counters strong{display:block;color:var(--gold-bright);font-family:Georgia,serif;font-size:22px}.counters span{font-size:9px;color:#9ca6a2;letter-spacing:.15em}.icon-button{pointer-events:auto;width:36px;height:36px;border:1px solid #59645e;color:#d8d5c9;background:#152024b8;cursor:pointer}.bottom-hud{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px}.ability{position:relative;display:flex;align-items:center;gap:9px;width:170px;padding:8px 12px;background:#0c1519e8;border:1px solid #3d4c4b;overflow:hidden}.ability-icon{display:grid;place-items:center;width:35px;height:35px;border:1px solid #568896;color:#8bdff3;background:#152a31;font-size:20px;z-index:1}.ability strong,.ability small{display:block}.ability strong{font-size:11px}.ability small{font-size:9px;color:#91a09c;margin-top:4px}.ability.dash .ability-icon{color:#e9cb82;border-color:#7c6e4c;background:#29271c}.ability.dash>i{position:absolute;inset:0;background:#05090bad;transform-origin:bottom;transform:scaleY(0);pointer-events:none}.boss-wrap{position:absolute;top:92px;left:50%;transform:translateX(-50%);width:min(520px,70vw);text-align:center}.boss-wrap>span{font-family:"Noto Serif SC",serif;font-size:13px;color:#f1c999;text-shadow:0 2px 4px #000}.boss-bar{height:10px;border:1px solid #9e754c;background:#1a1111;margin-top:5px}.boss-bar i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#873035,#da7849)}.announcement{position:fixed;z-index:80;pointer-events:none;top:25%;left:0;right:0;text-align:center;font-family:"Noto Serif SC",serif;font-weight:700;font-size:28px;color:#ffe3a4;letter-spacing:.14em;text-shadow:0 3px 10px #000;opacity:0;transition:opacity .3s}.announcement.show{opacity:1}.modal{background:rgba(3,8,10,.78);backdrop-filter:blur(5px)}
 /* #52 联机选卡：背景调浅可看见战斗，提示条醒目 */
@@ -352,7 +352,7 @@
 .gb-slot .svg-ic{width:28px;height:28px}
 .gb-slot .gear-ic{width:30px;height:30px}
 .gb-slot.rar-b-0{border-color:#5a6a63}.gb-slot.rar-b-1{border-color:#4d6e58}.gb-slot.rar-b-2{border-color:#4f7a94}.gb-slot.rar-b-3{border-color:#7a5a9c;box-shadow:inset 0 0 12px rgba(176,127,224,.15)}.gb-slot.rar-b-4{border-color:#b0824a;box-shadow:inset 0 0 12px rgba(232,164,94,.2)}
-.gb-empty{font-size:10px;color:#6d7a74;align-self:center}
+.gb-empty{font-size:10px;color:#8f9d97;align-self:center;text-shadow:0 1px 3px #000}
 .stats-hud{position:absolute;left:16px;bottom:16px;font-size:11px;color:#fff;text-shadow:0 1px 3px #000;line-height:1.75;letter-spacing:.03em;pointer-events:none;opacity:.92}
 /* #52 联机队伍面板（魔兽小队风格） */
 .party-panel{position:absolute;left:12px;top:76px;display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:5}
@@ -455,20 +455,47 @@ body.assets-ready .boot-screen{opacity:0;visibility:hidden;pointer-events:none}
 .touch-ui{position:absolute;inset:0;pointer-events:none;z-index:6}
 .touch-pad{position:absolute;right:max(8px,env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));
   display:none;align-items:flex-end;gap:clamp(5px,1.6vw,8px);pointer-events:none}
-.touch-skills{display:grid;grid-template-columns:repeat(2,clamp(42px,13.5vw,56px));
-  grid-auto-rows:clamp(42px,13.5vw,56px);gap:clamp(5px,1.6vw,8px)}
+.touch-skills{display:grid;grid-template-columns:repeat(2,clamp(44px,13.5vw,56px));
+  grid-auto-rows:clamp(44px,13.5vw,56px);gap:clamp(5px,1.6vw,8px)}
 .touch-btn{display:none}
-@media(max-width:720px){
+/* ★ 触控层启用条件（2026-11-03 修正）：
+     原为纯 `max-width:720px` → 手机**横屏**（宽 844/926px）时触控层不显示，
+     玩家完全没有摇杆与技能键 —— 只能看不能操作。
+     改为与 game.js 的 tdIsMobile() 同口径：
+       · 窄屏（≤820px）→ 显示
+       · 触屏设备且宽度 ≤1024px → 显示
+     用 `pointer:coarse` 精确命中触屏设备，避免误伤带触摸屏的笔记本（其主输入是鼠标）。
+   横屏另有专门的压缩规则（见下方 max-height:480px 块）。 */
+@media(max-width:820px), (pointer:coarse) and (max-width:1024px){
   .touch-ui{display:block}
   .touch-pad{display:flex}
-  /* 摇杆：左下角，尺寸随屏宽收缩 */
-  .joystick{display:block;position:absolute;left:max(10px,env(safe-area-inset-left));
+  /* 摇杆（跟随模式 · mobile.js）：
+     · #joystick = 空闲态「提示圈」，只做视觉引导，不响应点击
+     · .joystick-float = 按下后就地生成的浮动摇杆（跟随手指落点）
+     · 实际方向计算全部在 mobile.js，本处只负责视觉
+     ★ 浮动摇杆激活时（body.joy-active）隐藏提示圈 —— 否则两者同屏显得冗余，
+       且提示圈固定在左下会误导玩家「只能在这里拖」。*/
+  #joystick{display:block;position:absolute;left:max(10px,env(safe-area-inset-left));
     bottom:calc(14px + env(safe-area-inset-bottom));
     width:clamp(82px,25vw,108px);height:clamp(82px,25vw,108px);border-radius:50%;
-    border:1px solid #91aaa34d;background:#17252455;pointer-events:auto;touch-action:none}
-  .joystick i{position:absolute;width:40%;height:40%;left:30%;top:30%;border-radius:50%;
-    background:#b5c7bb55;border:1px solid #dbe9dc88}
-  /* 技能按钮：右下角 2 列 grid + 右侧闪现键，按需显隐 */
+    border:1px dashed #91aaa34d;background:#17252433;pointer-events:none;opacity:.5;touch-action:none;
+    transition:opacity .15s ease-out}
+  body.joy-active #joystick{opacity:0}
+  #joystick i{position:absolute;width:40%;height:40%;left:30%;top:30%;border-radius:50%;
+    background:#b5c7bb33;border:1px solid #dbe9dc55}
+  /* 浮动摇杆：位置由 JS 按手指落点设置，transform 做居中 + 出现动画
+     底盘用深色半透明 + 亮描边 —— 在草地/雪地等任意底色上都要看得清 */
+  .joystick-float{position:fixed;left:0;top:0;width:clamp(104px,30vw,136px);height:clamp(104px,30vw,136px);
+    border-radius:50%;border:2px solid #cfe6d4aa;background:#0d1a1fcc;pointer-events:none;
+    box-shadow:0 4px 20px #0007,inset 0 0 24px #9fc0b822;
+    touch-action:none;opacity:0;transform:translate(-50%,-50%) scale(.6);
+    transition:transform .14s ease-out,opacity .14s ease-out;z-index:7}
+  .joystick-float i{position:absolute;width:40%;height:40%;left:30%;top:30%;border-radius:50%;
+    background:#e8f5eacc;border:2px solid #ffffffcc;box-shadow:0 2px 12px #0009;
+    transition:transform .06s linear}
+  .joystick-float.on{opacity:1}
+  /* 技能按钮：右下角 2 列 grid + 右侧闪现键，按需显隐
+     触控目标最小 44px（Apple HIG），320px 窄屏也不低于该值 */
   .touch-btn{display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;
     border-radius:50%;pointer-events:auto;touch-action:none;font-size:12px;font-weight:800;line-height:1.15;
     border:1px solid #6f8ea099;background:#1c2a33bb;color:#cfe8f5}
@@ -478,6 +505,9 @@ body.assets-ready .boot-screen{opacity:0;visibility:hidden;pointer-events:none}
   #mobile-revive{border-color:#4f9a7299;background:#16301fcc;color:#b9edcd;font-size:11px}
   .touch-dash{width:clamp(50px,15vw,64px);height:clamp(50px,15vw,64px);
     border-color:#c3a76299;background:#342e1dbb;color:#f1dca9;font-size:12px}
+  /* 触控按压反馈：手指能「看见」自己按到了哪个键 */
+  .touch-btn:active{transform:scale(.92);filter:brightness(1.35);border-color:#dbe9dcbb}
+  .touch-btn{transition:transform .08s ease-out,filter .08s ease-out,border-color .12s}
   /* 底部 HUD 重排：装备条移到左上角、数值行移到顶部、首领血条与队伍面板下移，全部避开摇杆与技能组 */
   .gear-bar{top:72px;left:8px;bottom:auto;transform:none;gap:3px}
   .gb-slot{width:30px;height:30px}
@@ -488,10 +518,18 @@ body.assets-ready .boot-screen{opacity:0;visibility:hidden;pointer-events:none}
   .party-panel{top:182px;left:8px}
 }
 /* 极矮屏（横屏手机）：进一步压缩触控区，避免顶到画面中央 */
-@media(max-width:720px) and (max-height:480px){
-  .touch-skills{grid-template-columns:repeat(3,clamp(38px,9vw,48px));grid-auto-rows:clamp(38px,9vw,48px)}
+@media(max-height:480px){
+  /* ★ 横屏时桌面能力条必须隐藏 —— 它固定在底部中央（bottom:18px，高约 53px），
+     会与右下技能组重叠（实测横屏 844×390 时 Q 键被「疾风闪现」条压住）。
+     移动端已有触控层提供等价信息（技能键 + 闪现键），不需要重复。 */
+  .bottom-hud{display:none}
+  .touch-skills{grid-template-columns:repeat(3,clamp(44px,9vw,52px));grid-auto-rows:clamp(44px,9vw,52px)}
   .joystick{width:clamp(72px,19vw,92px);height:clamp(72px,19vw,92px)}
+  .joystick-float{width:clamp(88px,22vw,110px);height:clamp(88px,22vw,110px)}
   .stats-hud,.gear-bar{display:none}
+  /* 横屏时技能组靠右下更紧凑，摇杆提示圈让到最左角 */
+  .touch-pad{bottom:calc(8px + env(safe-area-inset-bottom));right:calc(6px + env(safe-area-inset-right))}
+  .boss-wrap{top:64px;width:min(420px,52vw)}
 }
 
 /* ============================================================
@@ -536,6 +574,9 @@ body.assets-ready .boot-screen{opacity:0;visibility:hidden;pointer-events:none}
    故取 88px 留出间隙 */
 .td-pad-state{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(10,14,15,.72);border:1px solid #3a3f2e;border-radius:4px;font-size:11px;letter-spacing:.06em;color:#9eaaa9;white-space:nowrap;pointer-events:none;z-index:6}
 .td-pad-state #td-hero-label{color:#e9d3a0}
+/* ★ 守卫放置模式：HUD 高亮提示（青绿色 = 可交互的放置态） */
+.td-pad-state #td-pad-label.td-placing{color:#7effc0;font-weight:700;text-shadow:0 0 8px rgba(120,255,190,.55)}
+.td-pad-state.td-placing{border-color:#3f7d5e;box-shadow:0 0 12px rgba(120,255,190,.28)}
 .td-sep-dot{color:#4a5347}
 
 /* ---- 小地图：右上角，canvas 用 CSS 拉伸填满 ---- */
