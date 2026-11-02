@@ -3511,8 +3511,23 @@
     // 死亡动效：碎裂粒子 + 上升魂灵
     FX.burst(e.x, e.y, e.color, e.boss ? 30 : 8, { speed: e.boss ? 240 : 130, grav: 200, size: 3 });
     if (!e.boss && Math.random() < .5) FX.emit({ x: e.x, y: e.y, vx: rand(-8, 8), vy: -46, life: .9, maxLife: .9, color: FX.alpha(e.color.startsWith('#') ? e.color : '#cfe0d8', .8), size: 3.5, glow: true });
-    // #51 主机广播击杀（经验共享 / 击杀归属 / 死亡特效 / 权威金币增量）
-    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain });
+    // ===== 装备卡牌掉落：与金币同一原则 —— 记账主体必须是击杀者 =====
+    // 主机是权威方：本地击杀 → 主机自己加 gearDrops；队友击杀 → 主机**不加**，
+    // 改为随 kill 快照下发权威数量，由击杀者本人弹卡。
+    // 否则会出现两个问题：
+    //   ① 主机代领队友的「掉落空池折算 +20 金币」（队友少拿、主机白拿）；
+    //   ② 客户端自己也随机掷一次掉落点 → 与主机重复，掉落率翻倍且两端不同步。
+    let gearDropCount = 0;
+    if (!endless) { // 无尽模式不产装备卡牌
+      if (e.boss) gearDropCount = 1;            // 首领必定爆出装备卡牌
+      else {
+        if (Math.random() < (game.gameMode === 'dungeon' ? .03 : .025)) gearDropCount++;
+        if (e.elite && Math.random() < .1) gearDropCount++; // 精英额外概率
+      }
+    }
+    if (gearDropCount && awardLocally) game.gearDrops += gearDropCount;
+    // #51 主机广播击杀（经验共享 / 击杀归属 / 死亡特效 / 权威金币与掉落增量）
+    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain, gear: gearDropCount });
     // 掉落：首领必掉生命精华与装备卡牌，概率掉无尽药水与装备图纸；小怪不再掉落材料（#40）
     if (e.boss) {
       if (!endless) addLoot('essence', 2, e.x, e.y); // 无尽模式不产材料（材料可卖钱 → 变相产金币）
@@ -3532,19 +3547,17 @@
       if (!endless) {
         const lockedPlans = BOSS_PLANS.filter(pid => !save.gearLearned.includes(ITEMS[pid].gearId));
         if (lockedPlans.length && Math.random() < .25) addLoot(lockedPlans[Math.floor(Math.random() * lockedPlans.length)], 1, e.x, e.y - 64);
-        game.gearDrops++; // 首领必定爆出装备卡牌
+        // ★ 装备卡牌掉落已在上方统一按「击杀归属」结算（gearDropCount），此处不再重复计
       }
     } else {
       if (!endless && e.elite && Math.random() < .5) addLoot('essence', 1, e.x, e.y); // 精英额外掉落
-      if (!endless) { // 无尽模式不产装备卡牌
-        if (Math.random() < (game.gameMode === 'dungeon' ? .03 : .025)) game.gearDrops++; // #45 提高装备卡掉率
-        if (e.elite && Math.random() < .1) game.gearDrops++; // 精英额外概率
-      } else if (isTd) {
+      if (isTd) {
         // ★ 塔防：产出「局内核心」（TD 版的装备卡）—— 击杀时掉落、三选一弹出、不暂停。
         //   注意：绝不写 save.gearLearned / save.bag —— 塔防不产可入库的装备。
         const dropChance = e.elite ? .18 : .035;
         if (Math.random() < dropChance) game.tdCoreDrops++;
       }
+      // ★ 装备卡牌掉落已在上方统一按「击杀归属」结算（gearDropCount）
     }
     // 复仇药水：击杀回血
     if (p.potRevengeT > 0) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .04);
@@ -5484,8 +5497,9 @@
       FX.burst(d.x, d.y, d.color || '#cfe0d8', d.boss ? 24 : 8, { speed: d.boss ? 220 : 140, grav: 180 });
       if (d.boss) {
         game.bossKills = (game.bossKills || 0) + 1;
-        // 第 9 项：无尽模式不产装备卡牌
-        if (game.gameMode === 'dungeon') game.gearDrops++;
+        // ★ 装备卡掉落**不再**在此无条件计 —— 改用主机下发的权威数量 d.gear，且只归击杀者本人。
+        //   （旧逻辑：Boss 掉落加到每个客户端头上 + 客户端自己再随机掷一次点 → 双重掉落、
+        //     且队友的掉落会被本机代领，「掉落空池折算 +20 金币」记到别人头上。）
         game.bossAliveT = 0;
       }
       if (d.by === NET.myId) {
@@ -5497,7 +5511,8 @@
           const g = (typeof d.gold === 'number') ? d.gold : (d.boss ? 50 : Math.random() < .25 ? 2 : 1);
           p.gold += g;
           if (p.gearFx.goldFind && Math.random() < p.gearFx.goldFind) p.gold += 1;
-          if (!d.boss && Math.random() < .03) game.gearDrops++;
+          // ★ 装备卡牌掉落：只认主机下发的权威数量（d.gear），不再本地随机掷点
+          if (d.gear) game.gearDrops += d.gear;
         }
       }
       return;
