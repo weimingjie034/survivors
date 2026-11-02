@@ -358,15 +358,21 @@
         <div class="ability pot hidden" id="pot-ability"><span class="ability-icon" id="pot-icon">✚</span><div><strong id="pot-name">治疗药水</strong><small id="pot-text">E · 就绪</small></div><i id="pot-cooldown"></i></div>
         <div class="ability dash"><span class="ability-icon" id="dash-icon">➤</span><div><strong>疾风闪现</strong><small id="dash-text">空格 · 就绪</small></div><i id="dash-cooldown"></i></div>
       </div>
-      <div id="joystick" class="joystick"><i></i></div>
-      <button id="mobile-pot" class="mobile-pot">药水</button>
-      <button id="mobile-active" class="mobile-active">技能</button>
-      <button id="mobile-active2" class="mobile-active2">技能II</button>
-      <!-- 第 20 项：主动技能 4 槽位对应的移动端按钮 -->
-      <button id="mobile-active3" class="mobile-active3">技能III</button>
-      <button id="mobile-active4" class="mobile-active4">技能IV</button>
-      <button id="mobile-revive" class="mobile-revive">战复</button>
-      <button id="mobile-dash" class="mobile-dash">闪现</button>
+      <!-- 移动端触屏控件：左下摇杆 + 右下技能组（grid 排布，任意屏宽都不与摇杆重叠） -->
+      <div class="touch-ui">
+        <div id="joystick" class="joystick"><i></i></div>
+        <div class="touch-pad">
+          <div class="touch-skills">
+            <button id="mobile-active" class="touch-btn">Q</button>
+            <button id="mobile-active2" class="touch-btn">R</button>
+            <button id="mobile-active3" class="touch-btn">C</button>
+            <button id="mobile-active4" class="touch-btn">V</button>
+            <button id="mobile-pot" class="touch-btn">药水</button>
+            <button id="mobile-revive" class="touch-btn">战复</button>
+          </div>
+          <button id="mobile-dash" class="touch-btn touch-dash">闪现</button>
+        </div>
+      </div>
     </section>
     <div id="announcement" class="announcement" aria-live="assertive"></div>
 

@@ -1402,7 +1402,7 @@
     mode = 'playing';
     if (game.raidTimer) { clearInterval(game.raidTimer); game.raidTimer = null; }
     game.raidLoot = null;
-    for (const id of ['home','menu','result','pause-screen','levelup','backpack','trainer','profession','achievements','gearpick','gear-replace','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
+    for (const id of ['home','menu','result','pause-screen','levelup','backpack','trainer','profession','achievements','gearpick','gear-replace','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); }
     ui.hud.classList.remove('hidden');
     const h = heroes[selectedHero];
     const p = game.player;
@@ -1462,7 +1462,7 @@
 
   function hideAll() {
     ui.hud.classList.add('hidden');
-    for (const id of ['home','menu','levelup','pause-screen','result','backpack','trainer','profession','achievements','gearpick','gear-replace','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); } // #53 补上联机三页，否则返回时旧页残留遮挡
+    for (const id of ['home','menu','levelup','pause-screen','result','backpack','trainer','profession','achievements','gearpick','gear-replace','gear-detail','dungeons','dungeon-reward','mode-choice','rooms','lobby','raid-loot']) { ui[id].classList.add('hidden'); ui[id].classList.remove('active'); } // #53 补上联机三页，否则返回时旧页残留遮挡；#60 补 gear-detail，否则装备详情弹层会永久全屏盖住 HUD
   }
   function showScreen(id) { ui[id].classList.remove('hidden'); ui[id].classList.add('active'); }
 
@@ -4552,22 +4552,33 @@
     // 第 20 项：4 个主动技能槽位统一渲染（Q / R / C / V）
     for (const slot of ACTIVE_SLOTS) {
       const suffix = slot.n === 1 ? '' : String(slot.n);
+      const sid = p[slot.skill];
+      const cdVal = p[slot.cd] || 0;
+      const def = sid ? skillDef(p.type, sid) : null;
+      // 移动端同名按钮：按需显隐（该槽位没装备技能就不占位）+ 冷却秒数
+      const mb = ui['mobile-active' + suffix];
+      if (mb) {
+        if (!sid) { mb.classList.add('hidden'); mb.dataset.cd = ''; }
+        else {
+          mb.classList.remove('hidden');
+          mb.textContent = slot.hotkey;
+          mb.title = def ? def.name : slot.label;
+          mb.dataset.cd = cdVal > 0 ? cdVal.toFixed(1) : '';
+        }
+      }
       const ab = ui['active-ability' + suffix];
       const ico = ui['active-icon' + suffix];
       const nm = ui['active-name' + suffix];
       const tx = ui['active-text' + suffix];
       const cdo = ui['active-cooldown' + suffix];
-      const sid = p[slot.skill];
       if (!ab || !ico || !nm || !tx || !cdo) continue;
       if (!sid) { ab.classList.add('hidden'); continue; }
       ab.classList.remove('hidden');
-      const def = skillDef(p.type, sid);
       if (ico.dataset.skill !== sid) {
         ico.dataset.skill = sid;
         ico.innerHTML = skillIconHtml(sid, heroes[p.type].color, 30);
       }
       nm.textContent = def ? def.name : '—';
-      const cdVal = p[slot.cd] || 0;
       tx.textContent = cdVal > 0 ? `${slot.hotkey} · ${cdVal.toFixed(1)}s` : `${slot.hotkey} · 就绪`;
       cdo.style.transform = `scaleY(${p[slot.max] ? cdVal / p[slot.max] : 0})`;
     }
@@ -4610,6 +4621,19 @@
         ui['revive-cooldown'].style.transform = `scaleY(${p.reviveCd / REVIVE_CD})`;
       }
     }
+    // #60 移动端触屏按钮：药水 / 战复 / 闪现的显隐与冷却（与桌面端能力条保持一致）
+    const mPot = ui['mobile-pot'];
+    if (mPot) {
+      mPot.classList.toggle('hidden', !save.potion);
+      mPot.dataset.cd = save.potion && p.potCd > 0 ? p.potCd.toFixed(0) : '';
+    }
+    const mRev = ui['mobile-revive'];
+    if (mRev) {
+      mRev.classList.toggle('hidden', !game.coop);
+      mRev.dataset.cd = game.coop ? (p.reviveT > 0 ? p.reviveT.toFixed(0) : (p.reviveCd > 0 ? Math.ceil(p.reviveCd) + '' : '')) : '';
+    }
+    const mDash = ui['mobile-dash'];
+    if (mDash) mDash.dataset.cd = p.dashCd > 0 ? p.dashCd.toFixed(1) : '';
     const boss = game.enemies.find(e => e.boss && !e.dead);
     if (boss) {
       ui['boss-wrap'].classList.remove('hidden');
@@ -6091,6 +6115,8 @@
         auraT: pt.auraT, auraDmg: pt.auraDmg, auraRate: pt.auraRate, auraLeap: pt.auraLeap })),
       petCount: g.pets.filter(pt => pt.beast).length };
   } });
+  // 配置出战药水（验收用：验证移动端药水按钮的显隐与布局）
+  Object.defineProperty(window, '__setPotion', { value: (id) => { save.potion = id || null; updateHUD(); return save.potion; } });
   // 直接设置卡牌等级（验收用），并立即刷新兽群
   Object.defineProperty(window, '__setMods', { value: (obj) => {
     const g = game; if (!g) return false;
