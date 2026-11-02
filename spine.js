@@ -92,6 +92,28 @@ window.SPINE = (() => {
   const DEFAULT_ANIM = { idle: 'stand_1', walk: 'run_1', attack: 'attack_1', cast: 'skill1_1', death: 'fall_1', hit: 'hit_1', stun: 'stunt_1' };
   const resources = {}, actorViews = new WeakMap(), fxViews = new WeakMap();
   let renderer = null, actorsCreated = 0, fxCreated = 0, loaded = 0, failed = 0;
+
+  // ===== 启动加载的并发与超时控制 =====
+  // ★ 踩坑记录（2026-11-02，GitHub Pages 部署时暴露）：
+  //   原来 63 套 Spine 一次性并发加载（每套 = atlas + json + png 共 3 个请求 = 189 个），
+  //   再叠加 assets.mjs 的 171 个图标/精灵请求，启动瞬间共 ~360 个请求同时发出，
+  //   直接打满浏览器每主机连接池 → 队列堆积到 165 秒还没排完，
+  //   期间成批请求失败 → Spine 大面积回退 PNG/矢量，启动页永远等不到 body.assets-ready。
+  //   实测：189 并发 = 165 秒；限流到 6 并发 = 毫秒级完成。
+  //   本地磁盘服务器（server.mjs / file://）完全测不出来，只有走网络（Pages / 隧道）才必现。
+  // 现在：并发上限 6 + 单套 25 秒超时；超时即回退，不阻塞启动。
+  const LOAD_CONCURRENCY = 6;
+  const LOAD_TIMEOUT_MS = 25000;
+
+  function withTimeout(promise, ms) {
+    let timer = null;
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('加载超时 ' + ms + 'ms')), ms);
+      })
+    ]).finally(() => { if (timer) clearTimeout(timer); });
+  }
   let enabled = typeof spine !== 'undefined' && location.protocol !== 'file:' && new URLSearchParams(location.search).get('spine') !== '0';
   const keys = Object.keys(CONFIG);
   const has = key => !!resources[key];
@@ -138,9 +160,22 @@ window.SPINE = (() => {
   function load(onProgress) {
     if (!enabled) { onProgress?.(1); return Promise.resolve(); }
     let done = 0;
-    return Promise.all(keys.map(key => loadOne(key, CONFIG[key]).catch(err => {
-      failed++; console.warn('[SPINE] 素材加载失败，使用回退:', key, err.message || err);
-    }).finally(() => { done++; loaded++; onProgress?.(done / keys.length); })));
+    // ★ 并发限流（网络托管必现的坑，详见 LOAD_CONCURRENCY 上方注释）
+    const queue = keys.slice();
+    const worker = async () => {
+      while (queue.length) {
+        const key = queue.shift();
+        try {
+          await withTimeout(loadOne(key, CONFIG[key]), LOAD_TIMEOUT_MS);
+        } catch (err) {
+          failed++; console.warn('[SPINE] 素材加载失败，使用回退:', key, err.message || err);
+        } finally {
+          done++; loaded++; onProgress?.(done / keys.length);
+        }
+      }
+    };
+    const n = Math.max(1, Math.min(LOAD_CONCURRENCY, queue.length));
+    return Promise.all(Array.from({ length: n }, worker));
   }
 
   function animationName(res, semantic) {

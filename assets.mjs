@@ -44,6 +44,32 @@ window.ASSETS = (() => {
   };
   const images = {}, svgs = window.ICON_SVGS || {};
   const sceneImages = {};
+
+  // ===== 并发限流 =====
+  // ★ 踩坑记录（2026-11-02，GitHub Pages 部署时暴露）：
+  //   启动阶段原本一次性并发发出 138 个图标 + 27 个精灵 + 6 个场景 + 4 个副本缩略图 = 175 个请求，
+  //   再叠加 spine.js 的 189 个请求（合计 ~360 个），打满浏览器每主机连接池：
+  //   队列堆积到 165 秒还没排完，期间成批失败 → 素材大面积回退 → 启动页卡死。
+  //   本地磁盘服务器测不出来，只有走网络（Pages / natapp 隧道）才必现。
+  // 现在统一限流：同时最多 8 个请求。
+  const LOAD_CONCURRENCY = 8;
+
+  // 并发执行 items，limit 个 worker，顺序保持不变。
+  // （JS 单线程，idx++ 是安全的；每个 worker 串行取一个任务）
+  function mapLimit(items, limit, fn) {
+    const list = items || [];
+    if (!list.length) return Promise.resolve([]);
+    const out = new Array(list.length);
+    let idx = 0;
+    const worker = async () => {
+      while (idx < list.length) {
+        const i = idx++;
+        out[i] = await fn(list[i], i);
+      }
+    };
+    const n = Math.max(1, Math.min(limit, list.length));
+    return Promise.all(Array.from({ length: n }, worker)).then(() => out);
+  }
   // 第 15 项：场景贴图只保留「原图」一个变体。
   //   旧实现是「原图 + 旋转 90°」按棋盘交替铺贴，但旋转会把上/下边换到左/右边，
   //   旋转块与原图的公共边内容并不连续 → 相邻块交界处出现明显的横向硬接缝。
@@ -65,7 +91,7 @@ window.ASSETS = (() => {
     const entries = Object.entries(SCENE_MANIFEST);
     if (scenePromise) return scenePromise;
     let done = 0;
-    scenePromise = Promise.all(entries.map(([key, src]) => new Promise((resolve) => {
+    scenePromise = mapLimit(entries, 4, ([key, src]) => new Promise((resolve) => {
       const im = new Image();
       const finish = () => { done++; sceneLoaded++; onProgress?.(sceneLoaded, entries.length); resolve(); };
       im.onload = () => {
@@ -78,18 +104,18 @@ window.ASSETS = (() => {
       };
       im.onerror = () => { console.warn('[ASSETS] 场景贴图缺失，使用程序化地面:', src); finish(); };
       im.src = src;
-    })));
+    }));
     return scenePromise;
   }
 
   // 预热任意图片列表（副本缩略图等），提前走完解码，避免进页面时卡一下
   function preloadImages(urls) {
-    return Promise.all((urls || []).map(src => new Promise((resolve) => {
+    return mapLimit(urls || [], 4, (src) => new Promise((resolve) => {
       const im = new Image();
       im.onload = () => resolve();
       im.onerror = () => resolve();
       im.src = src;
-    })));
+    }));
   }
 
   // 第 5 项 / 第 14 项：图标 PNG（assets/icons/selected/）。
@@ -99,13 +125,13 @@ window.ASSETS = (() => {
   const ICON_KEYS = Array.isArray(window.ICON_PNG_KEYS) ? window.ICON_PNG_KEYS : [];
   const iconImages = {};
   function preloadIcons(keys) {
-    return Promise.all((keys || []).map(k => new Promise((resolve) => {
+    return mapLimit(keys || [], LOAD_CONCURRENCY, (k) => new Promise((resolve) => {
       if (iconImages[k]) { resolve(iconImages[k]); return; }
       const im = new Image();
       im.onload = () => { iconImages[k] = im; resolve(im); };
       im.onerror = () => resolve(null);
       im.src = ICON_DIR + k + '.png';
-    })));
+    }));
   }
 
   // 启动加载：一次性把精灵图 / 场景贴图 / Spine 骨骼 / 全部图标 / 额外图片拉齐。
@@ -123,7 +149,7 @@ window.ASSETS = (() => {
       onProgress?.(Math.min(1, p), label);
     };
 
-    const imgLoads = Object.entries(MANIFEST).map(([key, src]) => new Promise((resolve) => {
+    const imgLoads = mapLimit(Object.entries(MANIFEST), LOAD_CONCURRENCY, ([key, src]) => new Promise((resolve) => {
       const im = new Image();
       im.onload = () => { images[key] = im; loaded++; imgDone++; progress(); resolve(); };
       im.onerror = () => { failed++; console.warn('[ASSETS] 素材缺失，使用矢量回退:', src); imgDone++; progress(); resolve(); };
