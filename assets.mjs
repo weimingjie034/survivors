@@ -170,7 +170,11 @@ window.ASSETS = (() => {
     // 副本缩略图等额外图片
     const extraLoad = preloadImages(extras).then(() => { extraDone = extras.length; progress('副本资料'); });
 
-    return Promise.all([...imgLoads, sceneLoad, spineLoad, iconLoad, extraLoad]);
+    // 注意：imgLoads 现在是 Promise（mapLimit 的返回值），不是数组，
+    //       不能用 [...imgLoads] 展开 —— 展开 Promise 会抛
+    //       "imgLoads is not iterable"，导致 load() 整个 reject，
+    //       连带 body.assets-ready 永不置位、首页进不去。
+    return Promise.all([imgLoads, sceneLoad, spineLoad, iconLoad, extraLoad]);
   }
 
   return {

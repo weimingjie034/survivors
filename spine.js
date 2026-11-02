@@ -166,7 +166,14 @@ window.SPINE = (() => {
       while (queue.length) {
         const key = queue.shift();
         try {
-          await withTimeout(loadOne(key, CONFIG[key]), LOAD_TIMEOUT_MS);
+          // 网络抖动重试一次：CDN（尤其 GitHub Pages 在国内）偶发失败很常见，
+          // 重试一次的成本远低于「直接回退 PNG/矢量」带来的画面降级。
+          try {
+            await withTimeout(loadOne(key, CONFIG[key]), LOAD_TIMEOUT_MS);
+          } catch (err1) {
+            await new Promise(r => setTimeout(r, 800));
+            await withTimeout(loadOne(key, CONFIG[key]), LOAD_TIMEOUT_MS);
+          }
         } catch (err) {
           failed++; console.warn('[SPINE] 素材加载失败，使用回退:', key, err.message || err);
         } finally {
