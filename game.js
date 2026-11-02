@@ -7,7 +7,7 @@
   const TAU = Math.PI * 2;
   const DURATION = 300;
   // ===== 第 11 项：战复技能（联机专属 · 每位玩家默认佩戴）=====
-  const REVIVE_CHANNEL = 15;   // 读条时长 15 秒
+  const REVIVE_CHANNEL = 5;    // 读条时长 5 秒
   const REVIVE_CD = 60;        // 冷却 60 秒
   const REVIVE_OVERLAP = 46;   // 「重合站位」判定半径（玩家半径 17，留出容差）
   const REVIVE_HP = .5;        // 复活后恢复 50% 生命
@@ -2117,7 +2117,7 @@
       game.texts.push({ x: e.x + rand(-8, 8), y: e.y - e.r - 6, text: Math.round(e.dotAcc), color, life: .55, size: 10 });
       e.dotAcc = 0; e.dotTick = .5;
     }
-    if (e.hp <= 0) killEnemy(e);
+    if (e.hp <= 0) { e.killedByPlayer = localPlayerId(); killEnemy(e); } // ★ DOT 源自本地（主机）效果，击杀归属本地
   }
 
   function attackRate(p) {
@@ -2511,24 +2511,47 @@
     if (e.hp <= 0) killEnemy(e);
   }
 
+  // 联机模式下的本地玩家 id（单机 / 未连接时 NET.myId 为 null）
+  function localPlayerId() { return (typeof NET !== 'undefined' && NET.myId) ? NET.myId : null; }
+
   function killEnemy(e) {
     if (e.dead) return;
-    e.dead = true; const p = game.player; p.kills++;
+    e.dead = true; const p = game.player;
+    // ===== 第 51 项修复（联机结算金币变 0）：击杀归属与记账主体必须一致 =====
+    // 主机是权威结算方。队友击杀的金币既不能被主机代领（重复发放），
+    // 也不能因归属丢失而谁都拿不到（结算页金币为 0）。
+    // 做法：主机判定击杀者 → 主机自己击杀记自己的账；队友击杀则把本次金币增量
+    // 随 kill 快照下发，由被归属的那位玩家自行入账。
+    const inCoop = !!game.coop;
+    const cooph = !!game.coop?.host;
+    const myId = localPlayerId();
+    const killerId = cooph ? (e.killedByPlayer || myId) : myId;
+    const killerIsMe = !inCoop || killerId === myId;
+    // 联机客户端不做本地记账（金币与击杀数由主机按归属下发，避免重复或漏记）
+    const awardLocally = !inCoop || (cooph && killerIsMe);
+    if (awardLocally) p.kills++;
     // ===== 第 9 项：无尽模式只产成就与药水，不产金币与装备 =====
     const endless = game.gameMode !== 'dungeon';
     if (e.killedBy === 'bloodthirst' && p.mods.fury) p.furyT = 5;
     const pieces = e.boss ? 14 : e.type === 'golem' ? 3 : 1;
     for (let i = 0; i < pieces; i++) game.gems.push({ x: e.x + rand(-18,18), y: e.y + rand(-18,18), r: e.boss ? 7 : 5, value: e.xp / pieces, vx: rand(-35,35), vy: rand(-35,35), color: e.boss ? '#ffd66e' : '#67d5d7' });
+    // 金币只在冒险（副本）模式产出；goldGain = 本次击杀的权威金币增量（随快照下发）
+    let goldGain = 0;
     if (!endless) { // 金币只在冒险（副本）模式产出
-      p.gold += e.boss ? 50 : Math.random() < .25 ? 2 : 1;
-      if (p.gearFx.goldFind && Math.random() < p.gearFx.goldFind) p.gold += 1;
+      // goldGain = 基础金币增量（由主机裁定并随快照下发，保证两端账目一致）
+      goldGain = e.boss ? 50 : Math.random() < .25 ? 2 : 1;
+      if (awardLocally) {
+        p.gold += goldGain;
+        // goldFind 属各人装备效果（未联机同步），由击杀者本人本地结算
+        if (p.gearFx.goldFind && Math.random() < p.gearFx.goldFind) p.gold += 1;
+      }
     }
     burst(e.x, e.y, e.color, e.boss ? 35 : 10);
     // 死亡动效：碎裂粒子 + 上升魂灵
     FX.burst(e.x, e.y, e.color, e.boss ? 30 : 8, { speed: e.boss ? 240 : 130, grav: 200, size: 3 });
     if (!e.boss && Math.random() < .5) FX.emit({ x: e.x, y: e.y, vx: rand(-8, 8), vy: -46, life: .9, maxLife: .9, color: FX.alpha(e.color.startsWith('#') ? e.color : '#cfe0d8', .8), size: 3.5, glow: true });
-    // #51 主机广播击杀（经验共享 / 击杀归属 / 死亡特效）
-    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: e.killedByPlayer || NET.myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color });
+    // #51 主机广播击杀（经验共享 / 击杀归属 / 死亡特效 / 权威金币增量）
+    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain });
     // 掉落：首领必掉生命精华与装备卡牌，概率掉无尽药水与装备图纸；小怪不再掉落材料（#40）
     if (e.boss) {
       if (!endless) addLoot('essence', 2, e.x, e.y); // 无尽模式不产材料（材料可卖钱 → 变相产金币）
@@ -3022,9 +3045,9 @@
   }
 
   // ===== 第 11 项：战复技能 =====
-  // 规则：与倒地队友「重合站位」→ 读条 15 秒 → 队友恢复 50% 生命。
+  // 规则：与倒地队友「重合站位」→ 读条 5 秒 → 队友恢复 50% 生命。
   // 读条期间施救者停止自动攻击；移动 / 主动技能 / 闪现都会打断读条。
-  // 打断读条不会让技能进入冷却（可直接再次使用），但再次使用必须重新读满 15 秒。
+  // 打断读条不会让技能进入冷却（可直接再次使用），但再次使用必须重新读满 5 秒。
   function reviveCandidates() {
     const out = [];
     for (const al of game.allies?.values() || []) if (al.dead) out.push(al);
@@ -3240,6 +3263,8 @@
   function castActive(which = 1) {
     if (!game || mode !== 'playing') return;
     const p = game.player;
+    // ★ 联机倒地后进入观战：不得再施放主动技能（否则会绕过主机权威继续造成伤害）
+    if (p.downed) { toast('你已倒下，无法施放技能'); return; }
     if (p.reviveT > 0) interruptRevive(); // 第 11 项：使用主动技能打断战复读条
     // 第 20 项：4 个主动技能槽位统一走 ACTIVE_SLOTS 描述
     const slot = ACTIVE_SLOTS[which - 1] || ACTIVE_SLOTS[0];
@@ -3536,6 +3561,8 @@
   function usePotion() {
     if (!game || mode !== 'playing') return;
     const p = game.player;
+    // ★ 联机倒地后进入观战：不得再使用药水（否则血量会被"诈尸"式回满但仍处于倒地状态）
+    if (p.downed) { toast('你已倒下，无法使用药水'); return; }
     if (!save.potion || p.potCd > 0) return;
     const id = save.potion;
     const potLvl = save.potionLvl[id] || 1; // #44 药水强化等级
@@ -4389,7 +4416,11 @@
         p.kills++;
         // 第 9 项：无尽模式不产金币
         if (game.gameMode === 'dungeon') {
-          p.gold += d.boss ? 50 : Math.random() < .25 ? 2 : 1;
+          // ★ 主机下发权威金币增量（d.gold）：两端各自随机会让账目对不上，
+          //   且归属错位时客户端 p.gold 恒为 0 → 结算金币变 0
+          const g = (typeof d.gold === 'number') ? d.gold : (d.boss ? 50 : Math.random() < .25 ? 2 : 1);
+          p.gold += g;
+          if (p.gearFx.goldFind && Math.random() < p.gearFx.goldFind) p.gold += 1;
           if (!d.boss && Math.random() < .03) game.gearDrops++;
         }
       }
@@ -4487,10 +4518,14 @@
         if (d.dead && game.elapsed - (al.revivedAt ?? -999) > 2) al.dead = true;
       }
     } else if (d.k === 'dmg') {
+      // ★ 已倒地（观战）的玩家不得继续造成伤害 —— 主机权威二次校验，不信任客户端
+      const src = game.allies.get(from);
+      if (src && src.dead) return;
       const e = game.enemies.find(x => x.nid === d.id && !x.dead);
       if (e) {
         curAttacker = from;
-        e.hp -= d.d; e.flash = .1; e.killedBy = d.s || 'ally';
+        e.killedByPlayer = from; // ★ 记录击杀归属：否则结算时 by 回退成主机 id，队友金币恒为 0
+        e.hp -= d.d; e.flash = .1; if (d.s !== 'dot') e.killedBy = d.s || 'ally';
         if (e.hp <= 0) killEnemy(e);
         curAttacker = null;
       }
@@ -4509,6 +4544,8 @@
       if (!hostApplyRevive(d.to, from)) { NET.sendSnap({ k: 'revive-fail', to: from }); return; }
       al.lastRevive = game.elapsed;
     } else if (d.k === 'fx') { // #54 客户端技能视觉：主机本地渲染并转发给其他客户端
+      const src = game.allies.get(from);
+      if (src && src.dead) return; // ★ 已倒地的玩家不再广播技能特效
       renderAllySkillFx(from, d);
       NET.sendFx(d, from);
     } else if (d.k === 'raidRoll') { // 熔火之心团本：客户端上报 roll 点
