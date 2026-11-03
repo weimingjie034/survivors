@@ -10,7 +10,7 @@ window.SPINE = (() => {
     warrior: actor('Jianshen', 94),
     hunter: actor('Xierwanasi', 88, { anim: { cast: 'attack_2' } }),
     boss_hogger: actor('Langwang', 150),
-    boss_molten: actor('Lagenaluosi_boss', 170, { anim: { walk: 'stand_1' } }),
+    boss_molten: actor('Honglongnvwang_02', 170, { anim: { walk: 'stand_1', cast: 'skill1_1' } }),
     boss_abyss: actor('Enzuosi', 165, { anim: { walk: 'stand_1' } }),
     boss_lich: actor('Keersujiade', 158),
     boss_barren: actor('Keduoshou', 158),

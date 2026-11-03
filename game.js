@@ -1336,7 +1336,7 @@
   }
 
   const ui = {};
-  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','nav-td','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close','td-core'].forEach(id => ui[id] = $(id));
+  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','nav-td','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','levelup-pause-hint','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close','td-core'].forEach(id => ui[id] = $(id));
 
   let width = innerWidth, height = innerHeight, dpr = 1;
   let selectedHero = 'mage';
@@ -1796,7 +1796,7 @@
   }
 
   /**
-   * ★ 弹层仲裁器（2026-11-04 新增）
+   * ★ 弹层仲裁器（2026-11-03 新增）
    *
    * 背景（用户实测反馈的 bug）：「连续弹出核心选择和技能选择框，选了技能后选不到核心，
    * 卡在核心选择页面只能刷新」。
@@ -1830,7 +1830,15 @@
       return;
     }
     if (game.pendingLevels > 0 && mode === 'playing') { openLevelUp(); return; }
-    if (game.gearDrops > 0) { game.gearDrops--; openGearPick(); return; }
+    if (game.gearDrops > 0) {
+      // ★ 必须**先确认能开成再扣减**：openGearPick() 内部有「倒地 / 其它弹层开着」的提前 return，
+      //   若先 `game.gearDrops--` 再调用 → 提前 return 时这张装备卡就凭空丢了
+      //   （与当年「核心掉落凭空消失」是同一类 bug）。
+      if (game.player?.downed || game.tdCoreOpen || game.levelupOpen) return;
+      game.gearDrops--;
+      openGearPick();
+      return;
+    }
   }
 
 
@@ -1993,7 +2001,7 @@
     }
     TDR.wave++;
     const row = TD.WAVES.rows[TDR.wave - 1];
-    // ★ 2026-11-04：波次时长**逐波递增**（行内 seconds 字段，14s → 37s）。
+    // ★ 2026-11-03：波次时长**逐波递增**（行内 seconds 字段，14s → 37s）。
     //   怪量与波次时长同比例增长 → 出怪速率恒定（英雄吞吐量不变）→ 难度不变、场面变热闹。
     TDR.waveLen = row.seconds || TD.WAVES.waveSeconds;
     // 本波出怪的路：从激活路里随机取 row.lanes 条
@@ -2076,7 +2084,7 @@
       const bd = BOSS_ROSTER[bossSpec.roster] || BOSS_ROSTER[0];
       // ★ 首领不吃 laneHpMult（那是「本路怪密度」系数，首领是单个大目标），
       //   只叠塔防专用的轻度人数系数（首领只走一路，只有 1~2 人能打到它）。
-      // ★ 首领用**独立的血量基数** row.bossHp（2026-11-04）：小怪血量为了「割草感」
+      // ★ 首领用**独立的血量基数** row.bossHp（2026-11-03）：小怪血量为了「割草感」
       //   整体下调了一个数量级，首领必须保持削弱前的量级，否则会变成一枪秒。
       const bhp = (row.bossHp || row.hp) * bossSpec.hpMul * TD.BALANCE.bossHpMult(game.playerCount || 1);
       e.boss = true;
@@ -2514,7 +2522,7 @@
    * ★ 塔防场景素材（4 张，注册于 assets.mjs 的 SCENE_MANIFEST）
    *   ⚠️ 注册键名是 'td_ground' / 'td_road' / 'td_heart' / 'td_pad'。
    *      早期版本这里误写成 ASSETS.getScene('td') —— 键名不匹配 → 永远取不到图 →
-   *      背景只能走 '#1b2a1e' 兜底，玩家看到的是一片黑底（2026-11-04 用户实测反馈）。
+   *      背景只能走 '#1b2a1e' 兜底，玩家看到的是一片黑底（2026-11-03 用户实测反馈）。
    *   素材缺失时全部有程序化兜底，不会崩、也不会全黑。
    */
   const TD_SCENE = { ground: null, road: null, heart: null, pad: null, roadPat: null, loaded: false };
@@ -4387,7 +4395,7 @@
     // ===== 第 6 项：已倒下的玩家不再弹出升级卡牌 =====
     // 队友还在战斗时经验会持续涌入，倒地玩家若照常弹卡牌会被反复打断且无法操作。
     if (game.player?.downed) return;
-    // ★ 弹层互斥（2026-11-04）：核心 / 装备卡已开时不重入强化卡弹层。
+    // ★ 弹层互斥（2026-11-03）：核心 / 装备卡已开时不重入强化卡弹层。
     //   两个弹层同时打开会互相遮挡（#levelup 在 DOM 里靠后 → 盖住核心弹层），
     //   玩家表现为「选了技能后选不到核心」。这里改为排队：pendingLevels 保留，
     //   等当前弹层关闭后由 pumpPopups() 补开。
@@ -4396,8 +4404,15 @@
     // ★ 塔防模式同样不暂停（英雄无敌 + 技能自动放，选卡不影响防守）
     const live = !!game.coop || game.gameMode === 'td';
     if (live && game.levelupOpen) return;
-    if (live) { game.levelupOpen = true; ui['levelup-live'].classList.remove('hidden'); ui.levelup.classList.add('live'); }
-    else { mode = 'levelup'; ui['levelup-live'].classList.add('hidden'); ui.levelup.classList.remove('live'); }
+    // ★ 「时间已暂停」只在真暂停时显示 —— 联机 / 塔防是**不暂停**的，
+    //   两句同时出现会自相矛盾（「时间已暂停」+「战斗仍在继续」），玩家会以为卡住了。
+    if (live) {
+      game.levelupOpen = true; ui['levelup-live'].classList.remove('hidden'); ui.levelup.classList.add('live');
+      if (ui['levelup-pause-hint']) ui['levelup-pause-hint'].classList.add('hidden');
+    } else {
+      mode = 'levelup'; ui['levelup-live'].classList.add('hidden'); ui.levelup.classList.remove('live');
+      if (ui['levelup-pause-hint']) ui['levelup-pause-hint'].classList.remove('hidden');
+    }
     ui.levelup.classList.remove('hidden'); ui.levelup.classList.add('active');
     const p = game.player;
     const candidates = runUpgradePool().filter(u => !u.available || u.available(p));
@@ -5123,7 +5138,7 @@
     const p = game.player;
     // ===== 第 6 项：已倒下的玩家不再弹出装备卡牌（与升级卡牌同理）=====
     if (p.downed) return;
-    // ★ 弹层互斥（2026-11-04）：核心弹层开着时不重入装备卡弹层（避免互相遮挡）
+    // ★ 弹层互斥（2026-11-03）：核心弹层开着时不重入装备卡弹层（避免互相遮挡）
     if (game.tdCoreOpen || game.levelupOpen) return;
     // 候选：已研习、本职业、未携带的装备
     // 第 16 项（BUG 修复）：此前副本内「本副本套装无需提前研习即可掉落」，
@@ -5200,7 +5215,8 @@
     ui['gearpick-title'].textContent = dualRow ? '战利品 · 装备栏已满' : '战利品 · 选择一件';
     ui['gearpick-desc'].textContent = dualRow
       ? '上排：选择要带入的新装备（强化卡点一下直接生效）· 下排：选择要被替换掉的那一件 · 也可以直接放弃本次掉落'
-      : '时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备';
+      : (live ? '最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备'
+              : '时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备');
     ui['gear-cards'].innerHTML = '';
     picks.forEach((pick, i) => {
       const rc = RARITY[pick.rarity];
@@ -5822,7 +5838,7 @@
     game.gems = game.gems.filter(g => !g.dead);
     game.particles = game.particles.filter(v => v.life > 0); game.texts = game.texts.filter(v => v.life > 0); game.effects = game.effects.filter(v => v.life > 0);
     game.shake = Math.max(0, game.shake - 30 * dt); game.flash = Math.max(0, game.flash - dt);
-    // ★ 弹层仲裁（2026-11-04）：同一时刻只允许一个「选卡类」弹层 ——
+    // ★ 弹层仲裁（2026-11-03）：同一时刻只允许一个「选卡类」弹层 ——
     //   强化卡(#levelup) / 装备卡(#gearpick) / 局内核心(#td-core)。
     //   旧实现三条触发各写各的，两个弹层可同时打开并互相遮挡（#levelup 在 DOM 里靠后
     //   → 盖住核心弹层），玩家表现成「连续弹出核心和技能框、选了技能后点不到核心」。
