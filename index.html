@@ -378,19 +378,8 @@
         <span id="td-cover-label">覆盖 ▓▓▓░</span>
       </div>
 
-      <!-- 局内核心（塔防版的「装备」）—— 只在本局生效，不入存档 -->
+      <!-- 刷怪口标记 / 局内核心芯片条 -->
       <div id="td-core-slots" class="td-core-slots hidden"></div>
-
-      <!-- 核心三选一弹层（击杀掉落 · 不暂停战斗）-->
-      <section id="td-core" class="screen modal hidden">
-        <div class="modal-panel level-panel">
-          <div class="eyebrow">CORE</div>
-          <h2 id="td-core-title">拾取核心</h2>
-          <p id="td-core-desc">核心只在本局生效 · 战斗不会暂停 · 同名核心可叠加（有等级上限）</p>
-          <div id="td-core-cards" class="upgrade-cards"></div>
-          <button id="td-core-skip" class="text-button">放弃本次核心</button>
-        </div>
-      </section>
 
       <div id="td-minimap" class="td-minimap hidden">
         <canvas id="td-minimap-canvas" width="256" height="160"></canvas>
@@ -453,6 +442,23 @@
       </div>
     </section>
 
+    <!-- ===== 核心三选一弹层（塔防 · 击杀掉落 · 不暂停战斗）=====
+         ★ 必须放在 body 级（与 #levelup / #gearpick 同级），不能塞进 #hud 里：
+           #hud 是 .hud{position:absolute;inset:0;z-index:5;pointer-events:none}
+           —— pointer-events 会被子元素继承 → 整个核心弹层（含卡片与「放弃」按钮）
+              **点不动**（真实鼠标点击无效，但脚本 .click() 仍有效 → e2e 全绿、真人玩不了）；
+           且 #hud 的 z-index:5 < #levelup 的 34 → 强化卡弹层会盖住核心弹层。
+           放在 body 级后：与其它选卡弹层同级、层级一致、可点击。 -->
+    <section id="td-core" class="screen modal hidden">
+      <div class="modal-panel level-panel">
+        <div class="eyebrow">CORE</div>
+        <h2 id="td-core-title">拾取核心</h2>
+        <p id="td-core-desc">核心只在本局生效 · 战斗不会暂停 · 同名核心可叠加（有等级上限）</p>
+        <div id="td-core-cards" class="upgrade-cards"></div>
+        <button id="td-core-skip" class="text-button">放弃本次核心</button>
+      </div>
+    </section>
+
     <section id="pause-screen" class="screen modal hidden">
       <div class="modal-panel compact">
         <div class="eyebrow">远征暂停</div><h2>稍作休整</h2>
@@ -493,6 +499,9 @@
   <script src="./fx.js"></script>
   <script src="./td.js"></script>
   <script src="./mobile.js"></script>
+  <!-- ★ hunter.js：猎人职业重做（卡牌定义 / 倍率表 / AOE 结算）—— 必须排在 game.js 之前，
+       game.js 启动时会调用 window.HUNTER.patchSkills 挂接猎人卡牌。 -->
+  <script src="./hunter.js"></script>
   <script src="./game.js"></script>
 </body>
 </html>
