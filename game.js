@@ -1807,19 +1807,30 @@
    *        #levelup 在 DOM 里靠后 → 直接盖住核心弹层。
    *   修法：DOM 层级已把 #td-core 提到 body 级（见 index.html 注释），
    *        这里再加一层「排队制」保险 —— 同一时刻只允许一个选卡弹层，
-   *        谁先关，下一个由 pumpPopups() 统一补开（先进先出：强化卡 → 装备卡 → 局内核心）。
+   *        谁先关，下一个由 pumpPopups() 统一补开。
+   *        补开顺序：塔防 = 局内核心 → 强化卡（核心稀有，怕被强化卡压住）；
+   *                  其它模式 = 强化卡 → 装备卡（沿用原顺序，不影响既有 e2e）。
    */
   function pumpPopups() {
     if (!game) return;
     if (game.gearPickOpen || game.levelupOpen || game.tdCoreOpen) return;  // 已有弹层在等
     if (game.player?.downed) return;
-    if (game.pendingLevels > 0 && mode === 'playing') { openLevelUp(); return; }
-    if (game.gearDrops > 0) { game.gearDrops--; openGearPick(); return; }
-    if (game.gameMode === 'td' && game.tdCoreDrops > 0) {
+    // ★ 塔防模式：局内核心优先于强化卡。
+    //   两种弹层的产出性质完全不同：
+    //     - 强化卡 = **持续产出**（每级一张，队列会自动补开，永远不会丢）；
+    //     - 局内核心 = **稀有掉落**（杀够怪才掉一次，错过就没了）。
+    //   若让强化卡优先，密集升级期（刷怪提速后升级更频繁）核心会被一直压住，
+    //   玩家主观感受就是用户反馈的「选了技能后选不到核心」——
+    //   其实是核心还排在队列里，但玩家看到的是一串强化卡。
+    //   所以：核心先弹、强化卡随后补上，**两者都不会丢失**。
+    if (game.gameMode === 'td' && game.tdCoreDrops > 0 && mode === 'playing') {
       const n = game.tdCoreDrops;
       game.tdCoreDrops = 0;
-      if (!openTdCorePick()) game.tdCoreDrops = n;   // 没开成 → 放回去，下一帧再试
+      if (!openTdCorePick()) { game.tdCoreDrops = n; return; }  // 没开成 → 放回去，下一帧再试
+      return;
     }
+    if (game.pendingLevels > 0 && mode === 'playing') { openLevelUp(); return; }
+    if (game.gearDrops > 0) { game.gearDrops--; openGearPick(); return; }
   }
 
 
@@ -1982,6 +1993,9 @@
     }
     TDR.wave++;
     const row = TD.WAVES.rows[TDR.wave - 1];
+    // ★ 2026-11-04：波次时长**逐波递增**（行内 seconds 字段，14s → 37s）。
+    //   怪量与波次时长同比例增长 → 出怪速率恒定（英雄吞吐量不变）→ 难度不变、场面变热闹。
+    TDR.waveLen = row.seconds || TD.WAVES.waveSeconds;
     // 本波出怪的路：从激活路里随机取 row.lanes 条
     const lanes = TDR.lanes.slice();
     for (let i = lanes.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = lanes[i]; lanes[i] = lanes[j]; lanes[j] = t; }
@@ -2008,10 +2022,12 @@
       const bossLane = (covered.find(l => use.includes(l)) || use[0] || lanes[0]);
       TDR.queue.unshift({ lane: bossLane, kind: tdKindFor(row), elite: false, boss: bossSpec });
     }
-    // 出怪节奏：让本波怪恰好在波次时长内出完，但夹在 [0.15s, 3s] 之间。
-    //   ★ 不夹上限的话第 1 波（3 只）会摊到 28 秒里 → 9 秒才出一只，开局空转；
-    //   不夹下限的话第 30 波（188 只）会挤在 0.15 秒内 → 瞬时爆怪。
-    TDR.spawnInterval = Math.max(.15, Math.min(3, TDR.waveLen / Math.max(1, TDR.queue.length)));
+    // 出怪节奏：让本波怪恰好在波次时长内出完，但夹在 [0.08s, 3s] 之间。
+    //   ★ 不夹上限的话第 1 波会摊到十几秒里 → 几秒才出一只，开局空转；
+    //   不夹下限的话后期波（4 路 × 65 只）会挤在 0.08 秒内 → 瞬时爆怪。
+    //   ★ 下限从 0.15 降到 0.08：怪量 ×2 之后，0.15 的下限会让本波怪出不完、
+    //     堆到下一波（波次节奏错乱）。
+    TDR.spawnInterval = Math.max(.08, Math.min(3, TDR.waveLen / Math.max(1, TDR.queue.length)));
     TDR.spawnAcc = 0;
     const tag = row.tags.filter(t => t.startsWith('BOSS') || t === '精英波').join(' ');
     announce(`第 ${TDR.wave} 波 · ${row.count} 只 × ${use.length} 路${tag ? ' · ' + tag : ''}`, tag ? '#f1a277' : '#ffd98a', 2);
@@ -2060,7 +2076,9 @@
       const bd = BOSS_ROSTER[bossSpec.roster] || BOSS_ROSTER[0];
       // ★ 首领不吃 laneHpMult（那是「本路怪密度」系数，首领是单个大目标），
       //   只叠塔防专用的轻度人数系数（首领只走一路，只有 1~2 人能打到它）。
-      const bhp = row.hp * bossSpec.hpMul * TD.BALANCE.bossHpMult(game.playerCount || 1);
+      // ★ 首领用**独立的血量基数** row.bossHp（2026-11-04）：小怪血量为了「割草感」
+      //   整体下调了一个数量级，首领必须保持削弱前的量级，否则会变成一枪秒。
+      const bhp = (row.bossHp || row.hp) * bossSpec.hpMul * TD.BALANCE.bossHpMult(game.playerCount || 1);
       e.boss = true;
       e.name = bd.name;
       e.spine = bd.spine;                 // → bossSpineKey() 走这里，绘制用 BOSS 专属 Spine 模型
@@ -5668,6 +5686,10 @@
         for (const e of game.enemies) {
           if (e.dead || distance(tr, e) >= tr.boomR + e.r) continue;
           const dur = 2 + .8 * (p.mods.ft_len || 0) + (p.mods.ft_apex ? 1 : 0);
+          // ★ BUG 修复：冰冻陷阱的伤害系数（130% 武器伤害）此前从未结算 ——
+          //   tr.dmg 只在爆炸陷阱分支被使用，冰冻分支只冻结不造成伤害，
+          //   卡片描述里承诺的「130% 武器伤害」完全落空（猎人白拿一张控制卡）。
+          damageEnemy(e, tr.dmg, Math.atan2(e.y - tr.y, e.x - tr.x), 'freezing_trap');
           if (e.boss) { if (p.mods.ft_apex) applyStun(e, 2); }
           else applyStun(e, dur);
           if (p.mods.ft_shatter) { e.vulnT = Math.max(e.vulnT || 0, dur); e.vulnAmt = .15; }
@@ -5804,7 +5826,8 @@
     //   强化卡(#levelup) / 装备卡(#gearpick) / 局内核心(#td-core)。
     //   旧实现三条触发各写各的，两个弹层可同时打开并互相遮挡（#levelup 在 DOM 里靠后
     //   → 盖住核心弹层），玩家表现成「连续弹出核心和技能框、选了技能后点不到核心」。
-    //   现在统一走 pumpPopups()：先进先出（强化卡 → 装备卡 → 局内核心），谁先关下一个补上。
+    //   现在统一走 pumpPopups()：同一时刻只开一个，谁先关下一个补上
+    //   （塔防：局内核心优先于强化卡；其它模式：强化卡 → 装备卡）。
     pumpPopups();
     // 环境飘浮微粒（萤火/尘埃）
     if (Math.random() < dt * 5) FX.emit({ x: p.x + rand(-width / 2, width / 2), y: p.y + rand(-height / 2, height / 2),
