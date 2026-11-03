@@ -38,10 +38,38 @@ window.FX = (() => {
     return g;
   }
 
+  // ===== 设备性能档位（移动端体验优化 §3.6 · 性能分级）=====
+  //   高档：桌面 / 高端平板     dpr ≤ 2     粒子上限 270
+  //   中档：移动端             dpr ≤ 1.5   粒子上限 160
+  //   低档：移动端 + 低端机     dpr ≤ 1.25  粒子上限 90
+  //     低端机判定：hardwareConcurrency ≤ 4 且 deviceMemory ≤ 4
+  //   ★ deviceMemory 在 Firefox / Safari 上不存在 → undefined → 按 8 处理 → 不判低档。
+  //     宁可不降级也别误降（误降会让中端机白白掉画质）。
+  //   ★ 口径与 game.js 的 tdIsMobile() / mobile.js 的 isMobile() 必须一致，
+  //     否则三处各判各的 → 会出现「判定是移动端但 dpr 用了桌面档」。
+  function isMobileViewport() {
+    return (innerWidth <= 820) || (navigator.maxTouchPoints > 0 && innerWidth <= 1024);
+  }
+  function isLowTier() {
+    if (!isMobileViewport()) return false;
+    const cores = navigator.hardwareConcurrency || 8;
+    const mem = navigator.deviceMemory || 8;
+    return cores <= 4 && mem <= 4;
+  }
+  function perfTier() {
+    if (!isMobileViewport()) return 'high';
+    return isLowTier() ? 'low' : 'mid';
+  }
+  const TIER_PARTICLES = { high: 270, mid: 160, low: 90 };
+  const TIER_DPR = { high: 2, mid: 1.5, low: 1.25 };
+  function particleBudget() { return TIER_PARTICLES[perfTier()]; }
+  function dprBudget() { return TIER_DPR[perfTier()]; }
+
   // ===== 粒子 =====
   // 字段：x,y,vx,vy,grav(重力),drag,life,maxLife,color,size,shrink(随寿命缩小),glow(发光),alpha
   function emit(o) {
-    if (particles.length > 380) particles.shift(); // 性能预算：粒子上限
+    // 性能预算：粒子上限按设备档位分级（原先固定 380，低端机会直接掉帧）
+    if (particles.length > particleBudget()) particles.shift();
     particles.push({ vx: 0, vy: 0, grav: 0, drag: 1, size: 3, shrink: false, glow: false, alpha: 1, ...o });
   }
 
@@ -93,5 +121,16 @@ window.FX = (() => {
 
   function clear() { particles.length = 0; }
 
-  return { emit, burst, ring, update, draw, clear, ease, shade, alpha, radial, count: () => particles.length };
+  const api = { emit, burst, ring, update, draw, clear, ease, shade, alpha, radial, count: () => particles.length };
+
+  // ★ 对外暴露设备档位（game.js 的 dpr / 粒子 / shake / Spine 降帧都读它）。
+  //   放在 fx.js 是因为 fx.js 是最早加载的脚本 —— game.js 与 mobile.js 都能安全读到。
+  window.__perfTier = {
+    tier: perfTier,
+    isLow: isLowTier,
+    isMobile: isMobileViewport,
+    particles: particleBudget,
+    dpr: dprBudget,
+  };
+  return api;
 })();

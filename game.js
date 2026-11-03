@@ -1372,8 +1372,11 @@
 
   function resize() {
     width = innerWidth; height = innerHeight;
-    // ★ 移动端降级：dpr 上限 1.5（省 44% 像素填充）。不砍任何数值，只砍表现层。
-    dpr = Math.min(devicePixelRatio || 1, tdIsMobile() ? 1.5 : 2);
+    // ★ 移动端降级：dpr 上限按设备档位分级（移动端体验优化 §3.6）
+    //   高 2 / 中 1.5 / 低 1.25（低端安卓）—— 不砍任何数值，只砍表现层。
+    //   档位判定统一读 fx.js 的 window.__perfTier，保证 dpr / 粒子 / shake 三处同源。
+    const dprCap = (window.__perfTier && window.__perfTier.dpr()) || (tdIsMobile() ? 1.5 : 2);
+    dpr = Math.min(devicePixelRatio || 1, dprCap);
     canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
     canvas.style.width = width + 'px'; canvas.style.height = height + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1421,6 +1424,8 @@
     game = { player: freshPlayer(selectedHero), enemies: [], projectiles: [], enemyShots: [], gems: [],
       orbs: [], zones: [], pets: [], meteors: [], traps: [], particles: [], texts: [], effects: [], allyFx: [], spineFx: [], elapsed: 0, spawnTimer: .4, bossIndex: 0,
       pendingLevels: 0, shake: 0, flash: 0, totalDamage: 0, startedAt: Date.now(), loot: {}, bossKills: 0,
+      // ★ 帧计数：用于低档设备的 Spine 骨骼降帧（每 2 帧推进一次动画）
+      frame: 0,
       gear: [], gearDrops: 0, bossAliveT: 0, _gearSig: null, _statsAt: 0,
       // 装备栏已满时的两阶段选择：阶段一选中待带入的新装备（gearPending），阶段二指定替换目标
       gearPending: null,
@@ -4644,7 +4649,10 @@
   }
   function spawnSpineFx(key, x, y, opts = {}) {
     if (!game || !SPINE.has(key)) return;
-    if (game.spineFx.length >= 28) game.spineFx.shift(); // 高过绘资源同屏上限
+    // ★ Spine 骨骼同屏上限按设备档位分级（§3.6）：低档机 14 / 其它 28。
+    //   骨骼是 Canvas 上最贵的绘制项（每帧都要做骨骼变换 + 网格裁剪）。
+    const spineCap = (window.__perfTier && window.__perfTier.isLow()) ? 14 : 28;
+    if (game.spineFx.length >= spineCap) game.spineFx.shift(); // 高过绘资源同屏上限
     const life = opts.life ?? 1;
     game.spineFx.push({ key, x, y, a: opts.a || 0, life, maxLife: life, follow: opts.follow || null,
       size: opts.size, fit: opts.fit || '', flipY: opts.flipY, tint: opts.tint || null, shield: opts.shield || null,
@@ -5369,6 +5377,8 @@
 
   function update(dt) {
     if (!game) return;
+    // ★ 帧计数（低档设备 Spine 降帧用）：每帧 +1
+    game.frame = (game.frame + 1) | 0;
     const p = game.player;
     // ★ 塔防模式：先跑 TD 专属逻辑（波次调度 / 自动施法 / 守卫 / 传送冷却），
     //   随后**仍然走主 update 的通用段**（投射物 / 区域 / 陷阱 / 粒子 / 清理）——
@@ -5837,6 +5847,11 @@
     });
     game.gems = game.gems.filter(g => !g.dead);
     game.particles = game.particles.filter(v => v.life > 0); game.texts = game.texts.filter(v => v.life > 0); game.effects = game.effects.filter(v => v.life > 0);
+    // ★ 粒子上限按设备档位分级（移动端体验优化 §3.6）
+    //   原先 game.particles 无上限，只靠 life 自然回收 → 低端机大招同屏时直接掉帧。
+    //   档位与 fx.js 的粒子预算同源（270 / 160 / 90）。
+    const pCap = (window.__perfTier && window.__perfTier.particles()) || 270;
+    if (game.particles.length > pCap) game.particles.splice(0, game.particles.length - pCap);
     game.shake = Math.max(0, game.shake - 30 * dt); game.flash = Math.max(0, game.flash - dt);
     // ★ 弹层仲裁（2026-11-03）：同一时刻只允许一个「选卡类」弹层 ——
     //   强化卡(#levelup) / 装备卡(#gearpick) / 局内核心(#td-core)。
@@ -5878,7 +5893,11 @@
       if (f.follow) { f.x = f.follow.x; f.y = f.follow.y; }
       if (f.shield === 'ice_barrier' && f.follow === p && (p.barrierHp <= 0 || p.barrierT <= 0)) f.life = 0;
       if (f.key === 'warrior_bladestorm' && f.follow === p) f.size = skillAreaRadius('blade_storm', p) * 2;
-      SPINE.updateFx(f, f.key, dt, { loop: f.loop, timeScale: f.timeScale });
+      // ★ 低档设备：Spine 骨骼动画降帧（每 2 帧才推进一次）→ 骨骼变换计算量减半。
+      //   同屏上限也已降到 14（spawnSpineFx）。低端安卓上这是最有效的两个降载点。
+      const lowTier = !!(window.__perfTier && window.__perfTier.isLow());
+      const fxDt = (lowTier && (game.frame & 1)) ? 0 : dt;
+      SPINE.updateFx(f, f.key, fxDt, { loop: f.loop, timeScale: f.timeScale });
     }
     game.spineFx = game.spineFx.filter(f => f.life > 0);
     SPINE.updateActor(p, p.type, { moving: Math.hypot(p.moveX, p.moveY) > .08, attack: p.atkAnim, cast: p.castAnim, dead: p.downed }, dt);
@@ -6254,6 +6273,12 @@
           mb.textContent = slot.hotkey;
           mb.title = def ? def.name : slot.label;
           mb.dataset.cd = cdVal > 0 ? cdVal.toFixed(1) : '';
+          // ★ 冷却弧比例（--cdp）：剩余冷却 / 总冷却（0=就绪，1=满冷却）
+          //   CSS 里用 conic-gradient 把这个比例画成按钮上扫过的扇形。
+          //   cdMax 取 p[slot.max] —— 施放瞬间写入的那次总冷却，可能被「娴熟」等卡压短，
+          //   所以用实际记录值而不是卡面理论值。
+          const cdMax = p[slot.max] || 0;
+          mb.style.setProperty('--cdp', cdMax > 0 ? Math.max(0, Math.min(1, cdVal / cdMax)).toFixed(3) : '0');
         }
       }
       const ab = ui['active-ability' + suffix];
@@ -6316,14 +6341,21 @@
     if (mPot) {
       mPot.classList.toggle('hidden', !save.potion);
       mPot.dataset.cd = save.potion && p.potCd > 0 ? p.potCd.toFixed(0) : '';
+      // ★ 冷却弧（药水总冷却 30s，硬编码于 usePotion）
+      mPot.style.setProperty('--cdp', save.potion && p.potCd > 0 ? Math.max(0, Math.min(1, p.potCd / 30)).toFixed(3) : '0');
     }
     const mRev = ui['mobile-revive'];
     if (mRev) {
       mRev.classList.toggle('hidden', !game.coop);
       mRev.dataset.cd = game.coop ? (p.reviveT > 0 ? p.reviveT.toFixed(0) : (p.reviveCd > 0 ? Math.ceil(p.reviveCd) + '' : '')) : '';
+      mRev.style.setProperty('--cdp', game.coop && p.reviveCd > 0 ? Math.max(0, Math.min(1, p.reviveCd / REVIVE_CD)).toFixed(3) : '0');
     }
     const mDash = ui['mobile-dash'];
-    if (mDash) mDash.dataset.cd = p.dashCd > 0 ? p.dashCd.toFixed(1) : '';
+    if (mDash) {
+      mDash.dataset.cd = p.dashCd > 0 ? p.dashCd.toFixed(1) : '';
+      // ★ 冷却弧（闪现总冷却 = p.dashMax，会被「时空漫步」等卡压缩 → 必须读实际值）
+      mDash.style.setProperty('--cdp', p.dashMax > 0 ? Math.max(0, Math.min(1, p.dashCd / p.dashMax)).toFixed(3) : '0');
+    }
     const boss = game.enemies.find(e => e.boss && !e.dead);
     if (boss) {
       ui['boss-wrap'].classList.remove('hidden');
@@ -6940,7 +6972,10 @@
   function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
     if (!game) { drawMenuGround(); return; }
-    const cam = camera(); const sx = game.shake ? rand(-game.shake, game.shake) : 0, sy = game.shake ? rand(-game.shake, game.shake) : 0;
+    // ★ 低档设备：屏幕震动幅度减半（§3.6）—— 震动本身不省算力，但大幅位移会触发
+    //   整屏重绘与像素填充，幅度减半等于减少了需要重绘的区域。
+    const shk = game.shake * ((window.__perfTier && window.__perfTier.isLow()) ? .5 : 1);
+    const cam = camera(); const sx = shk ? rand(-shk, shk) : 0, sy = shk ? rand(-shk, shk) : 0;
     ctx.save(); ctx.translate(-cam.x + sx, -cam.y + sy);
     if (game.gameMode === 'td') tdDrawGround(cam); else drawGround(cam);
     if (game.gameMode === 'td') tdDrawOverlay();   // ★ 心脏 / 传送阵 / 覆盖圈 / 守卫
