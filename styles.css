@@ -592,6 +592,10 @@ body.assets-ready .boot-screen{opacity:0;visibility:hidden;pointer-events:none}
 .td-core-chip.rar-2{border-color:#4f7a94;color:#bcd8ea}
 .td-core-chip.rar-3{border-color:#7a5a9c;color:#d8c2ee}
 #td-core .upgrade{background:linear-gradient(160deg,#1e2630,#0e141a);border-color:#4a5a66}
+/* ★ 安全网：#td-core 现在是 body 级子元素（与 #levelup/#gearpick 同级），
+   但若将来被误挪进 .hud（pointer-events:none 的容器）会导致整层点不动 ——
+   pointer-events 是**继承属性**，这里显式打开，杜绝同类事故复发。 */
+#td-core,#td-core *{pointer-events:auto}
 #td-core .upgrade .up-icon{color:#9fd3ff}
 #td-core .upgrade:hover{border-color:#9fd3ff}
 #td-core .upgrade small{color:#7d8f8a}
