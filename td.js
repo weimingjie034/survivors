@@ -206,39 +206,48 @@
   const WAVES = {
     total: 30,
     // 每波时长（秒）。无整备期，战斗连续推进。
+    // ★ 2026-11-04：改为**逐波递增**（14s → 37s），存在每一行的 `seconds` 字段里。
+    //   怪量必须与波次时长同比例增长 —— 英雄的清怪吞吐量有硬上限
+    //   （每次普攻最多命中 1+穿透 只 → 猎人 ≈ 4.2 只/秒），出怪速率一旦超过它，
+    //   覆盖段就会堵死、漏怪暴涨（见 tools/td/td-sim.mjs 实测记录）。
+    //   waveSeconds 保留为「兜底值」（旧数据/异常时用）。
     waveSeconds: 28,
     rows: [
-      { w: 1, count: 3, hp: 21, speed: 104, lanes: 1, xp: 2.22, lv: 2, tags: ["普通"] },
-      { w: 2, count: 4, hp: 23, speed: 105, lanes: 1, xp: 2.44, lv: 2, tags: ["普通"] },
-      { w: 3, count: 5, hp: 25, speed: 106, lanes: 1, xp: 2.66, lv: 3, tags: ["普通"] },
-      { w: 4, count: 6, hp: 27, speed: 107, lanes: 1, xp: 2.88, lv: 3, tags: ["普通"] },
-      { w: 5, count: 7, hp: 30, speed: 108, lanes: 2, xp: 3.1, lv: 4, tags: ["普通"] },
-      { w: 6, count: 8, hp: 33, speed: 109, lanes: 2, xp: 3.32, lv: 4, tags: ["普通"] },
-      { w: 7, count: 9, hp: 35, speed: 110, lanes: 2, xp: 3.54, lv: 5, tags: ["普通", "快速"] },
-      { w: 8, count: 10, hp: 38, speed: 111, lanes: 2, xp: 3.76, lv: 6, tags: ["普通", "快速"] },
-      { w: 9, count: 12, hp: 41, speed: 112, lanes: 2, xp: 3.98, lv: 6, tags: ["普通", "快速"] },
-      { w: 10, count: 13, hp: 45, speed: 113, lanes: 3, xp: 4.2, lv: 7, tags: ["普通", "快速", "BOSS#1"] },
-      { w: 11, count: 14, hp: 48, speed: 114, lanes: 3, xp: 4.42, lv: 7, tags: ["普通", "快速", "装甲"] },
-      { w: 12, count: 15, hp: 52, speed: 115, lanes: 3, xp: 4.64, lv: 8, tags: ["普通", "快速", "装甲"] },
-      { w: 13, count: 17, hp: 56, speed: 116, lanes: 3, xp: 4.86, lv: 9, tags: ["普通", "快速", "装甲", "飞行"] },
-      { w: 14, count: 18, hp: 60, speed: 118, lanes: 3, xp: 5.08, lv: 9, tags: ["普通", "快速", "装甲", "飞行"] },
-      { w: 15, count: 20, hp: 64, speed: 119, lanes: 3, xp: 5.3, lv: 10, tags: ["普通", "快速", "装甲", "飞行"] },
-      { w: 16, count: 21, hp: 68, speed: 120, lanes: 4, xp: 5.52, lv: 11, tags: ["普通", "快速", "装甲", "飞行", "施法"] },
-      { w: 17, count: 23, hp: 73, speed: 121, lanes: 4, xp: 5.74, lv: 11, tags: ["普通", "快速", "装甲", "飞行", "施法"] },
-      { w: 18, count: 24, hp: 77, speed: 122, lanes: 4, xp: 5.96, lv: 12, tags: ["普通", "快速", "装甲", "飞行", "施法"] },
-      { w: 19, count: 26, hp: 82, speed: 123, lanes: 4, xp: 6.18, lv: 13, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗"] },
-      { w: 20, count: 28, hp: 87, speed: 124, lanes: 4, xp: 6.4, lv: 13, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "BOSS#2"] },
-      { w: 21, count: 29, hp: 92, speed: 125, lanes: 4, xp: 6.62, lv: 14, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 22, count: 31, hp: 98, speed: 126, lanes: 4, xp: 6.84, lv: 15, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 23, count: 33, hp: 103, speed: 127, lanes: 4, xp: 7.06, lv: 15, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 24, count: 35, hp: 109, speed: 128, lanes: 4, xp: 7.28, lv: 16, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 25, count: 37, hp: 115, speed: 129, lanes: 4, xp: 7.5, lv: 17, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂", "精英波"] },
-      { w: 26, count: 39, hp: 121, speed: 130, lanes: 4, xp: 7.72, lv: 18, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 27, count: 41, hp: 127, speed: 131, lanes: 4, xp: 7.94, lv: 19, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 28, count: 43, hp: 133, speed: 132, lanes: 4, xp: 8.16, lv: 19, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 29, count: 45, hp: 140, speed: 133, lanes: 4, xp: 8.38, lv: 20, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂"] },
-      { w: 30, count: 47, hp: 146, speed: 134, lanes: 4, xp: 8.6, lv: 21, tags: ["普通", "快速", "装甲", "飞行", "施法", "治疗", "分裂", "BOSS#3"] },
+      { w:1, count:25, hp:3, bossHp:21, seconds:14, speed:104, lanes:1, xp:1.2, lv:3, tags:['普通'] },
+      { w:2, count:26, hp:3, bossHp:23, seconds:15, speed:105, lanes:1, xp:1.32, lv:4, tags:['普通'] },
+      { w:3, count:27, hp:4, bossHp:25, seconds:15.5, speed:106, lanes:1, xp:1.44, lv:5, tags:['普通'] },
+      { w:4, count:29, hp:5, bossHp:27, seconds:16.5, speed:107, lanes:1, xp:1.56, lv:5, tags:['普通'] },
+      { w:5, count:30, hp:6, bossHp:30, seconds:17, speed:108, lanes:2, xp:1.68, lv:6, tags:['普通'] },
+      { w:6, count:32, hp:7, bossHp:33, seconds:18, speed:109, lanes:2, xp:1.8, lv:7, tags:['普通'] },
+      { w:7, count:33, hp:9, bossHp:35, seconds:19, speed:110, lanes:2, xp:1.92, lv:7, tags:['普通','快速'] },
+      { w:8, count:34, hp:11, bossHp:38, seconds:19.5, speed:111, lanes:2, xp:2.04, lv:8, tags:['普通','快速'] },
+      { w:9, count:36, hp:13, bossHp:41, seconds:20.5, speed:112, lanes:2, xp:2.16, lv:8, tags:['普通','快速'] },
+      { w:10, count:37, hp:15, bossHp:45, seconds:21, speed:113, lanes:3, xp:2.28, lv:9, tags:['普通','快速','BOSS#1'] },
+      { w:11, count:39, hp:18, bossHp:48, seconds:22, speed:114, lanes:3, xp:2.39, lv:10, tags:['普通','快速','装甲'] },
+      { w:12, count:40, hp:20, bossHp:52, seconds:23, speed:115, lanes:3, xp:2.51, lv:10, tags:['普通','快速','装甲'] },
+      { w:13, count:41, hp:23, bossHp:56, seconds:23.5, speed:116, lanes:3, xp:2.63, lv:11, tags:['普通','快速','装甲','飞行'] },
+      { w:14, count:43, hp:26, bossHp:60, seconds:24.5, speed:118, lanes:3, xp:2.75, lv:11, tags:['普通','快速','装甲','飞行'] },
+      { w:15, count:44, hp:30, bossHp:64, seconds:25, speed:119, lanes:3, xp:2.87, lv:12, tags:['普通','快速','装甲','飞行'] },
+      { w:16, count:46, hp:33, bossHp:68, seconds:26, speed:120, lanes:4, xp:2.99, lv:13, tags:['普通','快速','装甲','飞行','施法'] },
+      { w:17, count:47, hp:37, bossHp:73, seconds:27, speed:121, lanes:4, xp:3.11, lv:13, tags:['普通','快速','装甲','飞行','施法'] },
+      { w:18, count:48, hp:41, bossHp:77, seconds:27.5, speed:122, lanes:4, xp:3.23, lv:14, tags:['普通','快速','装甲','飞行','施法'] },
+      { w:19, count:50, hp:45, bossHp:82, seconds:28.5, speed:123, lanes:4, xp:3.35, lv:14, tags:['普通','快速','装甲','飞行','施法','治疗'] },
+      { w:20, count:51, hp:50, bossHp:87, seconds:29, speed:124, lanes:4, xp:3.47, lv:15, tags:['普通','快速','装甲','飞行','施法','治疗','BOSS#2'] },
+      { w:21, count:53, hp:54, bossHp:92, seconds:30, speed:125, lanes:4, xp:3.59, lv:16, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:22, count:54, hp:59, bossHp:98, seconds:31, speed:126, lanes:4, xp:3.71, lv:16, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:23, count:55, hp:65, bossHp:103, seconds:31.5, speed:127, lanes:4, xp:3.83, lv:17, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:24, count:57, hp:70, bossHp:109, seconds:32.5, speed:128, lanes:4, xp:3.94, lv:17, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:25, count:58, hp:75, bossHp:115, seconds:33, speed:129, lanes:4, xp:4.06, lv:18, tags:['普通','快速','装甲','飞行','施法','治疗','分裂','精英波'] },
+      { w:26, count:60, hp:81, bossHp:121, seconds:34, speed:130, lanes:4, xp:4.18, lv:19, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:27, count:61, hp:87, bossHp:127, seconds:35, speed:131, lanes:4, xp:4.3, lv:19, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:28, count:62, hp:93, bossHp:133, seconds:35.5, speed:132, lanes:4, xp:4.42, lv:20, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:29, count:64, hp:100, bossHp:140, seconds:36.5, speed:133, lanes:4, xp:4.54, lv:20, tags:['普通','快速','装甲','飞行','施法','治疗','分裂'] },
+      { w:30, count:65, hp:107, bossHp:146, seconds:37, speed:134, lanes:4, xp:4.66, lv:21, tags:['普通','快速','装甲','飞行','施法','治疗','分裂','BOSS#3'] },
     ],
+
+
+
+
     // 经验曲线（塔防专用）：xpNeed(lv) = 6.12 × lv^1.45
     xpNeed: lv => Math.floor(6.12 * Math.pow(lv, 1.45)),
     // 波次里的怪类型标记（供小怪外观与特性使用）
