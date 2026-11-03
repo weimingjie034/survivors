@@ -1247,6 +1247,40 @@
   restoreSaveIdentity(); // #66 刷新后先恢复身份与命名空间档，避免进度显示为初始值
   persist(); // 立即写回规范化结果，清除旧档中混入的跨职业技能
 
+  // ★ GEARLOOT_HOOK · ④：把上下文注入独立文件 gearloot.js。
+  //   掉落通道的判定逻辑全在 gearloot.js 里（并行开发隔离约定：主体不写进 game.js），
+  //   这里只提供它需要的数据访问器 —— 它不持有任何游戏状态。
+  if (window.GEARLOOT) {
+    window.GEARLOOT.attach({
+      get game() { return game; },
+      get player() { return game?.player; },
+      learned: () => save.gearLearned,
+      gearDef: (gid) => GEAR[gid],
+      rand: () => Math.random(),
+      announce: (t, c, d) => announce(t, c, d),
+    });
+  }
+  // ★ SKILLAIM_HOOK · ①：注入范围技能落点计算的上下文。
+  //   法师/猎人的范围技能统一「落在最近敌人脚下」（与烈焰风暴一致）。
+  if (window.SKILLAIM) {
+    window.SKILLAIM.attach({
+      player: () => game?.player,
+      nearestEnemy: (maxRange) => nearestEnemy(maxRange),
+    });
+  }
+  // ★ AUTOCAST_HOOK · ①：注入自动施法模块的上下文。
+  //   自动施法**只代替玩家按键**：走的仍是 castActive() 这条唯一通路，
+  //   不绕过冷却、不绕过联机倒地保护、不直接改伤害 —— 因此不会引入新的作弊面。
+  if (window.AUTOCAST) {
+    window.AUTOCAST.attach({
+      get game() { return game; },
+      slots: () => ACTIVE_SLOTS,
+      cast: (n) => castActive(n),
+      skillRadius: (sid) => skillAreaRadius(sid, game?.player),
+      onChange: (on) => syncAutocastUI(on),
+    });
+  }
+
   // ===== #65 联机存档：本地优先 + 主机存档中心镜像 =====
   // 背景：localStorage 按 origin 隔离，玩家经隧道访问主机时域名/端口可能变化，
   // 原「昵称命名空间」档取不到 → 表现为每次访问主机链接都是新存档。
@@ -1336,7 +1370,7 @@
   }
 
   const ui = {};
-  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','nav-td','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','levelup-pause-hint','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close','td-core'].forEach(id => ui[id] = $(id));
+  ['home','menu','hud','levelup','pause-screen','result','backpack','trainer','profession','heroes','start','best','home-best','portrait','hero-name','level','hp-bar','hp-text','xp-bar','time','kills','gold','pause','autocast','boss-wrap','boss-name','boss-bar','attack-name','dash-text','dash-cooldown','announcement','upgrade-cards','resume','restart-pause','quit','result-icon','result-label','result-title','result-subtitle','result-time','result-kills','result-level','result-gold','result-loot','retry','result-menu','joystick','mobile-dash','mobile-autocast','mobile-active','mobile-active2','mobile-active3','mobile-active4','nav-adventure','nav-trainer','nav-profession','bag-toggle','bag-gold','bag-grid','bag-gold-total','bag-close','trainer-tabs','trainer-gold','equip-basic','equip-active','equip-active2','equip-active3','equip-active4','skill-list','trainer-back','menu-home','active-ability','active-icon','active-name','active-text','active-cooldown','active-ability2','active-icon2','active-name2','active-text2','active-cooldown2','active-ability3','active-icon3','active-name3','active-text3','active-cooldown3','active-ability4','active-icon4','active-name4','active-text4','active-cooldown4','toast','prof-gold','prof-list','prof-back','char-tabs','char-name','char-stats','eq-potion','achv-list','item-menu','achv-toggle','achievements','achv-grid','achv-back','achv-progress','gearpick','gear-cards','pot-ability','pot-icon','pot-name','pot-text','pot-cooldown','mobile-pot','nav-dungeons','nav-td','dungeons','dungeon-list','dungeons-back','dungeon-reward','reward-cards','achv-tabs','basic-icon','pot-list','gear-detail','gd-body','gd-close','levelup-live','levelup-pause-hint','gearpick-live','gearpick-title','gearpick-desc','gear-slots','gear-slots-label','gear-slot-cards','gr-discard','gear-bar','stats-hud','party-panel','mode-choice','mc-back','mc-title','mc-solo','mc-multi','rooms','rooms-back','rooms-hint','player-name','player-code','room-create','room-refresh','room-list','lobby','lobby-back','lobby-mode','lobby-name','lobby-slots','lobby-heroes','lobby-ready','lobby-start','revive-ability','revive-icon','revive-name','revive-text','revive-cooldown','revive-progress','mobile-revive','dg-tabs','raid-loot','raid-items','raid-stat','raid-chat-log','raid-chat-input','raid-chat-send','raid-close','td-core'].forEach(id => ui[id] = $(id));
 
   let width = innerWidth, height = innerHeight, dpr = 1;
   let selectedHero = 'mage';
@@ -1427,6 +1461,8 @@
       // ★ 帧计数：用于低档设备的 Spine 骨骼降帧（每 2 帧推进一次动画）
       frame: 0,
       gear: [], gearDrops: 0, bossAliveT: 0, _gearSig: null, _statsAt: 0,
+      // ★ GEARLOOT_HOOK · ③：装备**强化卡**的独立队列（与 gearDrops 分开计数）
+      gearUpDrops: 0,
       // 装备栏已满时的两阶段选择：阶段一选中待带入的新装备（gearPending），阶段二指定替换目标
       gearPending: null,
       // ★ 塔防局内核心（TD 版的「装备」）：只在本局生效，不入存档
@@ -1835,11 +1871,34 @@
       return;
     }
     if (game.pendingLevels > 0 && mode === 'playing') { openLevelUp(); return; }
+    // ★ GEARLOOT_HOOK · ⑤：强化卡通道 —— 独立于新装备卡，优先弹出。
+    //   理由：强化卡是「确定收益」（点一下就生效），新装备卡在装备栏满时
+    //   还要多一步「指定替换目标」，交互更重 → 便宜的先弹。
+    if ((game.gearUpDrops || 0) > 0) {
+      if (game.player?.downed || game.tdCoreOpen || game.levelupOpen) return;
+      // ★ 通道已无意义（装备全满级）→ 不弹空卡，直接折算金币，不打断战斗
+      if (window.GEARLOOT && !window.GEARLOOT.upChannelUseful()) {
+        const n = game.gearUpDrops;
+        game.gearUpDrops = 0;
+        window.GEARLOOT.foldToGold(n);
+        return;
+      }
+      game.gearUpDrops--;
+      openGearPick('up');
+      return;
+    }
     if (game.gearDrops > 0) {
       // ★ 必须**先确认能开成再扣减**：openGearPick() 内部有「倒地 / 其它弹层开着」的提前 return，
       //   若先 `game.gearDrops--` 再调用 → 提前 return 时这张装备卡就凭空丢了
       //   （与当年「核心掉落凭空消失」是同一类 bug）。
       if (game.player?.downed || game.tdCoreOpen || game.levelupOpen) return;
+      // ★ 新装备卡通道已无意义（5 件全满级 + 没有可换的新装备）→ 折算金币
+      if (window.GEARLOOT && !window.GEARLOOT.gearChannelUseful()) {
+        const n = game.gearDrops;
+        game.gearDrops = 0;
+        window.GEARLOOT.foldToGold(n);
+        return;
+      }
       game.gearDrops--;
       openGearPick();
       return;
@@ -3907,15 +3966,23 @@
     // 否则会出现两个问题：
     //   ① 主机代领队友的「掉落空池折算 +20 金币」（队友少拿、主机白拿）；
     //   ② 客户端自己也随机掷一次掉落点 → 与主机重复，掉落率翻倍且两端不同步。
-    let gearDropCount = 0;
+    // ★ GEARLOOT_HOOK · ①：新装备卡 / 装备强化卡**两条独立通道**的掷点。
+    //   旧实现只有一个 gearDropCount 队列，新装备卡总是优先、强化卡被挤掉，
+    //   且后期装备成型后仍高频弹「新装备卡」（玩家只能点放弃，纯打断）。
+    //   现在拆开：新装备卡降爆率，且在「5 件全满级」时彻底停止；
+    //   强化卡独立计数、独立弹层，后期它是唯一还有收益的通道。
+    //   ★ random 调用次数与旧实现完全一致（首领 0 / 小怪 1 / 精英 2）→ 随机序列不乱。
+    const dropRoll = window.GEARLOOT
+      ? window.GEARLOOT.rollDrop({ boss: !!e.boss, elite: !!e.elite, mode: game.gameMode })
+      : { gear: (e.boss ? 1 : 0), up: 0 };
+    let gearDropCount = 0, gearUpCount = 0;
     if (!endless) { // 无尽模式不产装备卡牌
-      if (e.boss) gearDropCount = 1;            // 首领必定爆出装备卡牌
-      else {
-        if (Math.random() < (game.gameMode === 'dungeon' ? .03 : .025)) gearDropCount++;
-        if (e.elite && Math.random() < .1) gearDropCount++; // 精英额外概率
-      }
+      gearDropCount = dropRoll.gear;
+      gearUpCount = dropRoll.up;
     }
     if (gearDropCount && awardLocally) game.gearDrops += gearDropCount;
+    // ★ 强化卡通道的入账（同样按击杀归属：只归击杀者本人）
+    if (gearUpCount && awardLocally) game.gearUpDrops += gearUpCount;
     // ===== 塔防「局内核心」的权威数量（★ 必须按击杀归属收口）=====
     //   主机替队友加核心 = 队友白打一场；而客户端自己掷掉落点 = 两端不一致。
     //   正确做法：主机算出权威数量 → 随 kill 快照下发 → 击杀者本人入账。
@@ -3968,7 +4035,7 @@
     if (isTd && awardLocally && tdCoreAward) game.tdCoreDrops += tdCoreAward;
     // #51 主机广播击杀（经验共享 / 击杀归属 / 死亡特效 / 权威金币与掉落增量）
     //   ★ 放在核心数量确定之后 —— 快照要带上权威的 core 数量。
-    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain, gear: gearDropCount, core: tdCoreAward });
+    if (game.coop?.host) NET.sendSnap({ k: 'kill', id: e.nid, by: killerId || myId, x: e.x | 0, y: e.y | 0, xp: e.xp, boss: !!e.boss, color: e.color, gold: goldGain, gear: gearDropCount, up: gearUpCount, core: tdCoreAward });
     // 复仇药水：击杀回血
     if (p.potRevengeT > 0) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .04);
     // 瘟疫传播：中毒目标死亡时传染周围敌人（技能卡或凋零 3 件套）
@@ -4682,13 +4749,19 @@
     else if (sid === 'arcane_nova') {
       const radius = skillAreaRadius(sid, p);
       // 单份素材只有一段奥术弧；三段限制在判定圈内部，形成清晰的周身爆发而非扩大范围。
-      for (let i = 0; i < 3; i++) spawnSpineFx('mage_arcane', p.x, p.y, { life: 1.05, size: radius * 1.75, fit: 'diameter', a: i / 3 * TAU, alpha: alpha * .78, timeScale: 1.9 });
+      // ★ SKILLAIM_HOOK · ③a：特效与实际伤害点保持一致（同一落点）。
+      const aimNv = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
+      for (let i = 0; i < 3; i++) spawnSpineFx('mage_arcane', aimNv.x, aimNv.y, { life: 1.05, size: radius * 1.75, fit: 'diameter', a: i / 3 * TAU, alpha: alpha * .78, timeScale: 1.9 });
     }
     else if (sid === 'arcane_blast') {
       const range = 260 * (1 + .2 * (p.mods?.ab_range || 0));
       spawnSpineFx('mage_arcane', p.x + Math.cos(a) * range * .48, p.y + Math.sin(a) * range * .48, { life: 1.05, size: range, fit: 'diameter', a, alpha, timeScale: 2 });
     } else if (sid === 'mirror_image' || sid === 'call_pet') spawnSpineFx('magic_circle', p.x, p.y, { life: 1.5, size: 170, alpha, timeScale: 1.25 });
-    else if (sid === 'blizzard') spawnSpineFx('mage_ice', p.x, p.y, { life: .9, size: 130, fit: 'diameter', alpha, timeScale: 1.4 });
+    else if (sid === 'blizzard') {
+      // ★ SKILLAIM_HOOK · ②a：特效与实际伤害点保持一致（同一落点）。
+      const aimBz = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
+      spawnSpineFx('mage_ice', aimBz.x, aimBz.y, { life: .9, size: 130, fit: 'diameter', alpha, timeScale: 1.4 });
+    }
     else if (sid === 'flamestrike') {
       // 持续区域使用浴火；另放一次短促爆炸，避免循环整段爆发动画造成闪屏。
       const zone = p === game.player ? game.zones[game.zones.length - 1] : null;
@@ -4745,7 +4818,10 @@
       // 需求 13：风暴之眼 → 范围 +25%/级；漫长寒冬 → 持续 +2 秒
       const blizR = skillAreaRadius('blizzard', p);
       const blizLife = 4 + 2 * (mod('bliz_len') || 0);
-      game.zones.push({ x: p.x, y: p.y, r: blizR, life: blizLife, maxLife: blizLife,
+      // ★ SKILLAIM_HOOK · ②：暴风雪改为落在**最近敌人脚下**（原为玩家自己脚下）。
+      //   与烈焰风暴（flamestrike）保持一致 —— 范围技能一律索敌，不用贴脸才能打中。
+      const aimB = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
+      game.zones.push({ x: aimB.x, y: aimB.y, r: blizR, life: blizLife, maxLife: blizLife,
         tick: 0, dmg: p.damage * .4 * (1 + .4 * mod('bliz_power')), slow: .3, spine: 'mage_ice', blizzard: true });
       cd = 11;
     } else if (sid === 'war_stomp') {
@@ -4782,11 +4858,14 @@
     // ===== #50 新主动技能 =====
     else if (sid === 'arcane_nova') {
       const r = skillAreaRadius('arcane_nova', p);
-      game.effects.push({ type: 'warning', x: p.x, y: p.y, r: 20, maxR: r, life: .4, maxLife: .4, color: '#bfeaff' });
-      FX.ring(p.x, p.y, '#bfeaff', 20, { speed: 300 });
+      // ★ SKILLAIM_HOOK · ③：魔爆术改为落在**最近敌人脚下**（原为玩家自己脚下）。
+      //   与烈焰风暴保持一致 —— 法师不再需要贴脸才能打出范围爆发。
+      const aimN = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
+      game.effects.push({ type: 'warning', x: aimN.x, y: aimN.y, r: 20, maxR: r, life: .4, maxLife: .4, color: '#bfeaff' });
+      FX.ring(aimN.x, aimN.y, '#bfeaff', 20, { speed: 300 });
       game.shake = Math.max(game.shake, 8);
       const dmg = p.damage * 1.1 * (1 + .4 * mod('nova_surge'));
-      const hits = aoeDamage(p.x, p.y, r, dmg, 'arcane_nova', {
+      const hits = aoeDamage(aimN.x, aimN.y, r, dmg, 'arcane_nova', {
         knock: mod('nova_knock') ? 130 : 65, slow: mod('nova_knock') ? [.3, 2] : null,
         vuln: mod('nova_mark') ? .12 : 0, vulnDur: 4 });
       cd = 8 + (mod('nova_surge') ? 2 : 0);
@@ -4794,7 +4873,8 @@
       if (mod('nova_master')) cd -= .4 * hits;
       if (mod('nova_shield')) { p.barrierHp = Math.max(p.barrierHp, p.maxHp * .15); p.barrierT = Math.max(p.barrierT, 3); }
       // 需求 13：余响不绝 → 二次爆鸣范围 +40%、伤害 +30%
-      if (mod('nova_echo')) game.meteors.push({ x: p.x, y: p.y, t: 1, r: r * (mod('nova_len') ? 1.4 : 1),
+      //   ★ 回响落在**同一次施放的落点**上（跟着最近的敌人走），不是玩家脚下
+      if (mod('nova_echo')) game.meteors.push({ x: aimN.x, y: aimN.y, t: 1, r: r * (mod('nova_len') ? 1.4 : 1),
         dmg: dmg * .6 * (mod('nova_len') ? 1.3 : 1), color: '#bfeaff', skill: 'arcane_nova' });
     } else if (sid === 'flamestrike') {
       const tgt = nearestEnemy(700);
@@ -4949,8 +5029,11 @@
       const n = mod('et_two') ? 2 : 1;
       // 需求 12：遥控引信 → 触发半径与爆炸范围同时扩大 30%/级
       const reachK = 1 + .3 * mod('et_reach');
+      // ★ SKILLAIM_HOOK · ④：爆炸陷阱改为落在**最近敌人脚下**（原为玩家身后 40 码）。
+      //   与烈焰风暴保持一致 —— 埋雷改为「往敌群里丢」，不用先跑过去再埋。
+      const aimT = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
       for (let i = 0; i < n; i++) {
-        game.traps.push({ type: 'explosive', x: p.x - Math.cos(a) * (i * 40), y: p.y - Math.sin(a) * (i * 40),
+        game.traps.push({ type: 'explosive', x: aimT.x, y: aimT.y,
           r: 70 * (mod('et_arm') ? 1.6 : 1) * reachK, boomR: skillAreaRadius('explosive_trap', p) * reachK,
           // 第 19 项：爆炸陷阱伤害系数 1.6 → 2.05
           dmg: p.damage * 2.05 * (1 + .15 * mod('et_power')) * (mod('et_sticky') ? 1.3 : 1), life: 6 });
@@ -4958,8 +5041,10 @@
       cd = 13;
     } else if (sid === 'freezing_trap') {
       const n = mod('ft_two') ? 2 : 1;
+      // ★ SKILLAIM_HOOK · ⑤：冰冻陷阱改为落在**最近敌人脚下**（原为玩家身后 40 码）。
+      const aimF = window.SKILLAIM ? window.SKILLAIM.aim(p) : { x: p.x, y: p.y, target: null };
       for (let i = 0; i < n; i++) {
-        game.traps.push({ type: 'freezing', x: p.x - Math.cos(a) * (i * 40), y: p.y - Math.sin(a) * (i * 40),
+        game.traps.push({ type: 'freezing', x: aimF.x, y: aimF.y,
           r: 70, boomR: skillAreaRadius('freezing_trap', p),
           // 第 19 项：冰冻陷阱伤害系数 1.0 → 1.3
           dmg: p.damage * 1.3, life: 8 });
@@ -5142,12 +5227,53 @@
     Object.assign(p, fresh);
     refreshBeastKing(); // 需求 12：装备/属性重算后同步兽群面板
   }
-  function openGearPick() {
+  /**
+   * 打开装备卡弹层。
+   * @param {'gear'|'up'} channel
+   *   'gear' → 新装备卡通道（默认，行为与旧版一致）
+   *   'up'   → ★ 装备**强化卡**通道（独立队列 gearUpDrops，点一下直接生效，不占栏位）
+   *
+   * ★★ 参数名**不能叫 `mode`**：全局有一个游戏状态变量 `mode`（'playing'/'gearpick'/…），
+   *   同名参数会**遮蔽**它 → 函数内的 `mode = 'gearpick'` 写进的是局部参数，
+   *   全局状态永远停在 'playing' → 单机模式选卡不暂停、`chooseGear` 的
+   *   `if (mode !== 'gearpick' && !game.gearPickOpen) return;` 直接拦掉点击
+   *   → 表现为「弹层能开但点不动」+「等不到 gearpick 暂停态」超时。
+   */
+  function openGearPick(channel = 'gear') {
     const p = game.player;
     // ===== 第 6 项：已倒下的玩家不再弹出装备卡牌（与升级卡牌同理）=====
     if (p.downed) return;
     // ★ 弹层互斥（2026-11-03）：核心弹层开着时不重入装备卡弹层（避免互相遮挡）
     if (game.tdCoreOpen || game.levelupOpen) return;
+    const picks = [];
+    const rarBonus = game.gameMode === 'dungeon' ? 8 : Math.min((game.bossKills || 0) * 3, 18);
+
+    // ===== ★ GEARLOOT_HOOK · ⑥：强化卡通道 —— 候选全部来自 gearloot.js =====
+    if (channel === 'up') {
+      // 强化卡：只强化「已装备且未满级」的装备，不占栏位、点一下直接生效
+      const upPicks = window.GEARLOOT ? window.GEARLOOT.buildUpPicks(3) : [];
+      picks.push(...upPicks);
+      if (!picks.length) {
+        // 通道枯竭 → 折算金币（与既有「战利品折算 +20」口径一致）
+        p.gold += 20;
+        announce('战利品折算 · +20 金币', '#ffe094', 1.4);
+        return;
+      }
+      ui['gearpick-title'].textContent = '战利品 · 装备强化';
+      ui['gearpick-desc'].textContent = '强化已有的装备（不占用栏位）· 满级后不再出现强化卡';
+      ui['gear-cards'].innerHTML = '';
+      renderGearPickCards(picks, false);
+      ui['gear-slots'].classList.add('hidden');
+      ui['gear-slots'].classList.remove('picking');
+      ui['gr-discard'].classList.add('hidden');
+      ui['gear-slot-cards'].innerHTML = '';
+      ui.gearpick.classList.remove('hidden'); ui.gearpick.classList.add('active');
+      game.gearPending = null;
+      if (game.coop || game.gameMode === 'td') { game.gearPickOpen = true; ui['gearpick-live'].classList.remove('hidden'); ui.gearpick.classList.add('live'); }
+      else { mode = 'gearpick'; ui['gearpick-live'].classList.add('hidden'); ui.gearpick.classList.remove('live'); }
+      return;
+    }
+
     // 候选：已研习、本职业、未携带的装备
     // 第 16 项（BUG 修复）：此前副本内「本副本套装无需提前研习即可掉落」，
     //   导致玩家没研习过图纸也能在 4 个地下城副本里刷到该副本套装卡牌，与设计不符。
@@ -5158,8 +5284,6 @@
       if (g.cls !== p.type || game.gear.some(c => c.id === gid)) return false;
       return save.gearLearned.includes(gid);
     });
-    const picks = [];
-    const rarBonus = game.gameMode === 'dungeon' ? 8 : Math.min((game.bossKills || 0) * 3, 18);
     // ===== 熔火之心团本橙装：已装备该橙装时，装备卡有概率刷出专属强化卡 =====
     // 需求原文：「只在战斗中装备了该橙装时，后续战斗中出现装备卡牌时才有概率刷新出该装备的强化卡牌」
     const moltenEntry = moltenGearEntry(p);
@@ -5226,6 +5350,27 @@
       : (live ? '最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备'
               : '时间已暂停 · 最多携带 5 件装备 · 满员时选择新装备可进行替换 · 可重复选择强化已有装备');
     ui['gear-cards'].innerHTML = '';
+    renderGearPickCards(picks, dualRow, moltenEntry);
+    // 下排：已装备的 5 件（仅满栏且有「新装备」时显示）
+    if (dualRow) {
+      ui['gear-slots'].classList.remove('hidden');
+      ui['gear-slots'].classList.remove('picking');
+      ui['gear-slots-label'].innerHTML = '当前装备 <span class="gs-hint">· 先在上排挑一件新装备，再点这里指定要替换掉的那件</span>';
+      ui['gr-discard'].classList.remove('hidden');
+      renderGearSlots();
+    } else {
+      ui['gear-slots'].classList.add('hidden');
+      ui['gear-slots'].classList.remove('picking');
+      ui['gr-discard'].classList.add('hidden');
+      ui['gear-slot-cards'].innerHTML = '';
+    }
+  }
+  // ★ GEARLOOT_HOOK · ⑦：装备卡牌的渲染（新装备卡通道与强化卡通道共用）
+  //   抽成独立函数的原因：两个通道的卡片结构完全一致（新装备 / 强化已有 / 熔火专属强化），
+  //   差别只在「卡面文案」与「是否需要下排替换目标」。
+  //   dualRow 为真时，新装备卡需要玩家再点下排指定替换目标（装备栏已满的双排两阶段流程）。
+  function renderGearPickCards(picks, dualRow, moltenEntry) {
+    const p = game.player;
     picks.forEach((pick, i) => {
       const rc = RARITY[pick.rarity];
       const button = document.createElement('button');
@@ -5251,19 +5396,6 @@
       button.addEventListener('click', () => chooseGear(pick, i));
       ui['gear-cards'].appendChild(button);
     });
-    // 下排：已装备的 5 件（仅满栏且有「新装备」时显示）
-    if (dualRow) {
-      ui['gear-slots'].classList.remove('hidden');
-      ui['gear-slots'].classList.remove('picking');
-      ui['gear-slots-label'].innerHTML = '当前装备 <span class="gs-hint">· 先在上排挑一件新装备，再点这里指定要替换掉的那件</span>';
-      ui['gr-discard'].classList.remove('hidden');
-      renderGearSlots();
-    } else {
-      ui['gear-slots'].classList.add('hidden');
-      ui['gear-slots'].classList.remove('picking');
-      ui['gr-discard'].classList.add('hidden');
-      ui['gear-slot-cards'].innerHTML = '';
-    }
   }
   // 下排渲染：当前已装备的 5 件（作为替换目标）
   function renderGearSlots() {
@@ -5905,6 +6037,9 @@
       al.atkAnim = Math.max(0, (al.atkAnim || 0) - dt); al.castAnim = Math.max(0, (al.castAnim || 0) - dt);
       SPINE.updateActor(al, al.hero, { moving: !!al.moving, attack: al.atkAnim, cast: al.castAnim, dead: al.dead }, dt);
     }
+    // ★ AUTOCAST_HOOK · ②：自动施法 —— 开关打开且「技能范围内有怪」时自动释放。
+    //   放在 update 末尾：此时冷却已经递减完毕，判定读到的就是最新冷却值。
+    if (window.AUTOCAST) window.AUTOCAST.update(dt);
     updateHUD();
   }
 
@@ -6075,6 +6210,8 @@
           if (p.gearFx.goldFind && Math.random() < p.gearFx.goldFind) p.gold += 1;
           // ★ 装备卡牌掉落：只认主机下发的权威数量（d.gear），不再本地随机掷点
           if (d.gear) game.gearDrops += d.gear;
+          // ★ GEARLOOT_HOOK · ②：强化卡通道的权威数量（d.up）—— 同样只归击杀者本人
+          if (d.up) game.gearUpDrops += d.up;
         }
         // ★ 塔防「局内核心」：只认主机下发的权威数量（d.core）—— 主机不替队友代领
         if (d.core) game.tdCoreDrops += d.core;
@@ -7630,6 +7767,31 @@
   }
   ui['trainer-back'].addEventListener('click', showHome);
   ui.pause.addEventListener('click', togglePause);
+  // ★ AUTOCAST_HOOK · ③：自动施法开关（顶栏按钮 = 桌面；触屏按钮 = 移动端）。
+  //   两个按钮共用同一份状态源（window.AUTOCAST.state.on），互为镜像。
+  function syncAutocastUI(on) {
+    const v = !!on;
+    const b = ui.autocast;
+    if (b) {
+      b.setAttribute('aria-pressed', v ? 'true' : 'false');
+      b.title = v ? '自动施法：开（范围内有怪时自动释放）' : '自动施法：关';
+      b.classList.toggle('on', v);
+    }
+    const mb = ui['mobile-autocast'];
+    if (mb) {
+      mb.setAttribute('aria-pressed', v ? 'true' : 'false');
+      mb.classList.toggle('on', v);
+      mb.textContent = v ? '自动·开' : '自动';
+    }
+  }
+  function toggleAutocast() {
+    if (!window.AUTOCAST) return;
+    const on = window.AUTOCAST.toggle();
+    toast(on ? '自动施法已开启' : '自动施法已关闭');
+  }
+  ui.autocast?.addEventListener('click', toggleAutocast);
+  ui['mobile-autocast']?.addEventListener('click', toggleAutocast);
+  syncAutocastUI(window.AUTOCAST?.state.on);
   ui.resume.addEventListener('click', togglePause);
   ui['restart-pause'].addEventListener('click', () => {
     if (game?.coop) { toast('联机对局无法单人重开'); togglePause(); return; } // #51
@@ -7963,6 +8125,16 @@
     if (!GEAR[gid]) return false;
     if (!save.gearLearned.includes(gid)) save.gearLearned.push(gid);
     return true;
+  } });
+  // 全部装备 id 列表（验收用：构造「装备成型」状态需要挑同职业的 5 件）
+  Object.defineProperty(window, '__allGearIds', { value: () => Object.keys(GEAR) });
+  // 全部「主动技能」id（验收用：检查自动施法规格表是否覆盖了每一个主动技能）
+  Object.defineProperty(window, '__activeSkillIds', { value: () => {
+    const out = [];
+    for (const list of Object.values(SKILLS || {})) {
+      for (const sk of (list || [])) if (sk && sk.kind === 'active') out.push(sk.id);
+    }
+    return [...new Set(out)];
   } });
   // 直接设置当前装备栏（验收用：验证「装备栏已满」时的双排替换流程）
   Object.defineProperty(window, '__setGear', { value: (ids) => {

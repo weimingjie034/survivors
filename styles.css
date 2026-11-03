@@ -698,3 +698,20 @@ body.td-mode .gear-bar{display:none}
 @media (min-width:769px) and (max-height:880px){
   .td-commands{top:248px;bottom:104px;transform:none;justify-content:center}
 }
+
+/* ===== 自动施法开关（2026-11-03）=====
+   需求：战斗时新增一个自动开关，打开后自动释放所有技能（范围内有怪时）。
+   两个入口共用同一状态源（window.AUTOCAST.state.on）：
+     · 桌面端 = 顶栏 ⚡ 按钮（icon-button，紧邻暂停键）
+     · 移动端 = 右下触屏区的「自动」键
+   ★ 塔防模式隐藏：TD 有自己的 AI 施法决策器（td.js），两套同时跑会双重施法。 */
+.icon-button.autocast-btn{font-size:17px;color:#9fb3ad;line-height:1}
+.icon-button.autocast-btn.on{color:#ffe3a4;border-color:var(--gold-bright);background:#3b2f13d9;
+  box-shadow:0 0 12px #ffd9a055}
+body.td-mode .autocast-btn{display:none}
+@media(max-width:820px), (pointer:coarse) and (max-width:1024px){
+  #mobile-autocast{border-color:#8f9a6e99;background:#25291bbb;color:#e2e8c8;font-size:11px;
+    width:clamp(44px,13.5vw,56px);height:clamp(44px,13.5vw,56px)}
+  #mobile-autocast.on{border-color:#ffd9a0;background:#4a3a18e0;color:#ffe3a4;box-shadow:0 0 12px #ffd9a055}
+  body.td-mode #mobile-autocast{display:none}
+}

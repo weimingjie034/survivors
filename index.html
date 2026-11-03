@@ -397,6 +397,7 @@
           <div><strong id="kills">0</strong><span>击败</span></div>
           <div><strong id="gold">0</strong><span>金币</span></div>
         </div>
+        <button id="autocast" class="icon-button autocast-btn" aria-label="自动施法" aria-pressed="false" title="自动施法：关">⚡</button>
         <button id="pause" class="icon-button" aria-label="暂停">Ⅱ</button>
       </div>
       <div id="boss-wrap" class="boss-wrap hidden"><span id="boss-name">精英</span><div class="boss-bar"><i id="boss-bar"></i></div></div>
@@ -426,6 +427,7 @@
             <button id="mobile-pot" class="touch-btn">药水</button>
             <button id="mobile-revive" class="touch-btn">战复</button>
           </div>
+          <button id="mobile-autocast" class="touch-btn" aria-label="自动施法" aria-pressed="false">自动</button>
           <button id="mobile-dash" class="touch-btn touch-dash">闪现</button>
         </div>
       </div>
@@ -497,11 +499,17 @@
   <script src="./net-config.js"></script>
   <script src="./net.js"></script>
   <script src="./fx.js"></script>
+  <script src="./gearloot.js"></script>
+  <script src="./skillaim.js"></script>
+  <script src="./autocast.js"></script>
   <script src="./td.js"></script>
   <script src="./mobile.js"></script>
   <!-- ★ hunter.js：猎人职业重做（卡牌定义 / 倍率表 / AOE 结算）—— 必须排在 game.js 之前，
        game.js 启动时会调用 window.HUNTER.patchSkills 挂接猎人卡牌。 -->
   <script src="./hunter.js"></script>
+  <!-- ★ feedback.js：玩家反馈入口 + 访问/对局数据采集 —— 独立文件，game.js 零改动，
+       必须排在 game.js 之前（它靠 window.game 只读探针取战局数据，game.js 定义该探针）。 -->
+  <script src="./feedback.js"></script>
   <script src="./game.js"></script>
 </body>
 </html>
